@@ -1,40 +1,32 @@
 (ns update-chromedriver
-  (:require [babashka.curl :as curl]
+  (:require [bb-utils :as bb-utils]
+            [babashka.curl :as curl]
             [babashka.fs :as fs]
             [clojure.tools.cli :refer [parse-opts]]))
 
 ;; https://book.babashka.org/#_parsing_command_line_arguments
 (def cli-options [["-d" "--debug" "Debug mode"]])
 (def opts (:options (parse-opts *command-line-args* cli-options)))
-(def debug? (:debug opts))
 
-(defn debug-println [& xs]
-  (when debug?
-    (apply println (flatten (list "DEBUG:" xs)))))
+(binding [bb-utils/*debug* (:debug opts)]
+  (bb-utils/debug-println ::start)
 
-(debug-println ::start)
+  (def version (:body (curl/get "https://chromedriver.storage.googleapis.com/LATEST_RELEASE")))
+  (def uri (str "https://chromedriver.storage.googleapis.com/" version "/chromedriver_mac64.zip"))
 
-(def version (:body (curl/get "https://chromedriver.storage.googleapis.com/LATEST_RELEASE")))
-(def uri (str "https://chromedriver.storage.googleapis.com/" version "/chromedriver_mac64.zip"))
+  (println "latest chromedriver version:" version)
+  (println "NB: this will overwrite your current file in /usr/local/bin/chromedriver!")
+  (println "do you want to proceed? (y/n)")
 
-(println "latest chromedriver version:" version)
-(println "NB: this will overwrite your current file in /usr/local/bin/chromedriver!")
-(println "do you want to proceed? (y/n)")
-(def continue (read-line))
-(when (or (= continue "y")
-          (= continue "yes"))
-  (def zip-file (:body (curl/get uri {:as :bytes})))
-  (def temp-dir (fs/create-temp-dir))
-  (def zip-path (str temp-dir "/chromedriver_latest.zip"))
+  (when (some #{"y" "yes"} (list (read-line)))
+    (def response (curl/get uri {:as :bytes}))
+    (bb-utils/debug-println "downloaded file:" response)
+    (def files (bb-utils/unzip-bytes {:data (:body response)
+                                      :filename "chromedriver_latest.zip"}))
+    (assert (some #{"chromedriver"} (:file-list files))
+            "unzipped contents must contain chromedriver")
+    (-> (fs/file (:dir files) "chromedriver")
+        (fs/copy "/usr/local/bin" {:replace-existing true}))
+    (bb-utils/debug-println "wrote to" (str (fs/path "/usr/local/bin" "chromedriver"))))
 
-  (fs/write-bytes zip-path zip-file)
-  (debug-println "downloaded to" zip-path)
-
-  (fs/unzip (fs/file zip-path) temp-dir)
-  (debug-println "unzipped to" (str (fs/path temp-dir "chromedriver")))
-
-  (-> (fs/file temp-dir "chromedriver")
-      (fs/copy "/usr/local/bin" {:replace-existing true}))
-  (debug-println "wrote to" (str (fs/path "/usr/local/bin" "chromedriver"))))
-
-(debug-println ::end)
+  (bb-utils/debug-println ::end))
