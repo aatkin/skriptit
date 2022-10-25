@@ -12,7 +12,7 @@
   (when debug?
     (apply println (flatten (list "DEBUG:" xs)))))
 
-(println ::start)
+(debug-println ::start)
 
 (def version (:body (curl/get "https://chromedriver.storage.googleapis.com/LATEST_RELEASE")))
 (def uri (str "https://chromedriver.storage.googleapis.com/" version "/chromedriver_mac64.zip"))
@@ -35,6 +35,6 @@
 
   (-> (fs/file temp-dir "chromedriver")
       (fs/copy "/usr/local/bin" {:replace-existing true}))
-  (println "wrote to" (str (fs/path "/usr/local/bin" "chromedriver"))))
+  (debug-println "wrote to" (str (fs/path "/usr/local/bin" "chromedriver"))))
 
-(println ::end)
+(debug-println ::end)
