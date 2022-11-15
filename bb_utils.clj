@@ -4,6 +4,11 @@
 
 (def ^:dynamic *debug*)
 
+(defn relative-file
+  "Returns file relative to currently executed file."
+  [s]
+  (fs/file (fs/parent *file*) s))
+
 (defn debug-println [& xs]
   (when (and (bound? #'*debug*) *debug*)
     (-> (partial println "DEBUG:")
