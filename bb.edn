@@ -1,0 +1,2 @@
+{:paths ["src"]
+ :tasks {update-chromedriver skriptit.update-chromedriver/-main}}
