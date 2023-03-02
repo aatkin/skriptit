@@ -2,12 +2,28 @@
   (:require [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.string :as str]
+            [clojure.tools.cli :refer [parse-opts]]
             [taoensso.timbre :as timbre]))
 
 (def +project-root-path+ (-> *file* ; root/src/skriptit/utils.clj
                              (fs/parent) ; root/src/skriptit
                              (fs/parent) ; root/src
                              (fs/parent))) ; root
+
+(defn parse-cli [args option-specs]
+  (-> args
+      (parse-opts option-specs)
+      :options))
+
+(defn print-help [option-specs]
+  (println "Available options:")
+  (doseq [opt option-specs]
+    (apply println opt)))
+
+(defn get-logging-level [{:keys [debug]} min-level]
+  (if debug
+    :debug
+    min-level))
 
 (defn slurp-edn [x]
   (-> (slurp x)
@@ -69,4 +85,10 @@
       (timbre/debug #'unzip-bytes "unzipped files" file-list)
       {:dir temp-dir
        :file-list file-list})))
+
+(defmacro with-logging [opts min-level & body]
+  `(timbre/with-level (skriptit.utils/get-logging-level ~opts ~min-level)
+     (timbre/debug :main/start ~opts)
+     ~@body
+     (timbre/debug :main/end)))
 

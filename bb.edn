@@ -1,2 +1,18 @@
 {:paths ["src"]
- :tasks {update-chromedriver skriptit.update-chromedriver/-main}}
+ :tasks {
+         ; helpers
+         :init (do
+                 (defn print-cmd [x]
+                   (apply println "Running:" (:cmd x)))
+                 (defn edit-or-read [s]
+                   (let [cmd (#{"code" "vim"} (first *command-line-args*))]
+                     ; task runner fails with anonymous fn in :pre-start-fn
+                     (shell {:pre-start-fn print-cmd} (or cmd "less") s))))
+         
+         ; converted from bash scripts
+         config (edit-or-read (System/getenv "CONFIG"))
+         aliases (edit-or-read (System/getenv "ALIASES"))
+
+         ; more complex scripts
+         update-chromedriver skriptit.update-chromedriver/-main
+         git skriptit.git/-main}}

@@ -1,6 +1,5 @@
 (ns skriptit.update-chromedriver
-  (:require [clojure.tools.cli :refer [parse-opts]]
-            [skriptit.utils :as utils :refer [+project-root-path+]]
+  (:require [skriptit.utils :as utils :refer [+project-root-path+]]
             [babashka.curl :as curl]
             [babashka.fs :as fs]
             [taoensso.timbre :as timbre]))
@@ -10,27 +9,23 @@
                   ["-f" "--force" "Force update"]
                   ["-y" "--yes" "Run script without having it ask any questions"]
                   ["-h" "--help" "Show this help"]])
-(defn parse-cli-options [args]
-  (-> args
-      (parse-opts cli-options)
-      :options))
 
 (def +version-file-path+ (str (-> +project-root-path+
                                   (fs/path "resources" "chromedriver_version.txt"))))
 (def +bin-path+ "/usr/local/bin")
 
-(defn check-version [{:keys [force]}]
+(defn get-version []
   (timbre/debug :version-file/path (str +version-file-path+))
   (let [current-version (when (.exists (fs/file +version-file-path+))
                           (:current (utils/slurp-edn +version-file-path+)))
         version (:body (curl/get "https://chromedriver.storage.googleapis.com/LATEST_RELEASE"))
-        update? (or force
-                    (not= current-version version))]
+        update? (not= current-version version)]
     (timbre/debug {:version version
                    :current-version current-version
                    :update? update?})
-    (cond-> {:current current-version}
-      update? (assoc :new version))))
+    {:current current-version
+     :new version
+     :update? update?}))
 
 (defn update-version-file [version]
   (spit +version-file-path+ {:current (:new version)})
@@ -55,32 +50,28 @@
     (println "do you want to proceed? (y/n)")
     (some #{"y" "yes"} (list (read-line)))))
 
-(defn get-logging-level [opts]
+(defn cli [opts]
   (cond
-    (:debug opts) :debug
-    :else :info))
+    (:help opts) (utils/print-help cli-options)
+
+    :else (let [version (get-version)]
+            (if (or (:update? version)
+                    (:force opts))
+              (when (ask-user-confirm! version)
+                (-> (:new version)
+                    (get-chromedriver {:os :mac/intel})
+                    (fs/copy +bin-path+ {:replace-existing true})
+                    (fs/file)
+                    (utils/chmod-file {:owner #{:r :w :x}
+                                       :group #{:r :x}
+                                       :public #{:r :x}}))
+                (timbre/info "wrote to" (str (fs/path +bin-path+ "chromedriver")))
+                (update-version-file version))
+              (and (not (:force opts))
+                   (println "already on latest version:" (:current version)))))))
 
 (defn -main [& args]
-  (let [opts (parse-cli-options args)]
-    (timbre/with-level (get-logging-level opts)
-      (timbre/debug :main/start opts)
-      (cond
-        (:help opts) (do
-                       (println "Available options:")
-                       (doseq [option-spec cli-options]
-                         (apply println option-spec)))
-
-        :else (let [version (check-version opts)]
-                (if (ask-user-confirm! version)
-                  (do (-> (:new version)
-                          (get-chromedriver {:os :mac/intel})
-                          (fs/copy +bin-path+ {:replace-existing true})
-                          (fs/file)
-                          (utils/chmod-file {:owner #{:r :w :x}
-                                             :group #{:r :x}
-                                             :public #{:r :x}}))
-                      (timbre/info "wrote to" (str (fs/path +bin-path+ "chromedriver")))
-                      (update-version-file version))
-                  (println "already on latest version:" (:current version)))))
-      (timbre/debug :main/end))))
+  (let [opts (utils/parse-cli args cli-options)]
+    (utils/with-logging opts :info
+      (cli opts))))
 
