@@ -11,14 +11,23 @@
             "please set environment variable $BB_SCRIPTS first (e.g. to git repo root)")
     dir))
 
-(defn parse-cli [args option-specs]
-  (-> args
-      (parse-opts option-specs)))
-
 (defn print-help [option-specs]
   (println "Available options:")
   (doseq [opt option-specs]
-    (apply println opt)))
+    (apply println "\t" opt)))
+
+(defn parse-cli [args option-specs]
+  (let [parsed-args (parse-opts args option-specs)
+        errors (:errors parsed-args)
+        unknown-args (:arguments parsed-args)]
+    (cond
+      (seq errors) (do
+                     (apply println "errors parsing options:" errors)
+                     (print-help option-specs))
+      (seq unknown-args) (do
+                           (apply println "unrecognized arguments:" unknown-args)
+                           (print-help option-specs))
+      :else (:options parsed-args))))
 
 (defn slurp-edn [x]
   (-> (slurp x)

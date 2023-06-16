@@ -26,8 +26,7 @@
 ;; https://book.babashka.org/#_parsing_command_line_arguments
 (def cli-options [["-d" "--debug" "Debug mode"]
                   ["-f" "--force" "Force update"]
-                  ["-y" "--yes" "Run script without having it ask any questions"]
-                  ["-h" "--help" "Show this help"]])
+                  ["-y" "--yes" "Run script without having it ask any questions"]])
 
 (defn get-current-and-new-versions []
   (let [version-file (when (.exists (fs/file +version-file-path+))
@@ -48,12 +47,17 @@
         (do
           (println "latest chromedriver version:" new-version (str "(current: " current-version ")"))
           (println "NB: this will overwrite current file in" +target-path+)
-          (println "do you want to proceed? (y/n)")
-          (when (some #{"y" "yes"} (list (read-line)))
-            new-version))))))
+          (if (:yes opts)
+            (do
+              (println "option :yes set, proceeding automatically")
+              new-version)
+            (do
+              (println "do you want to proceed? (y/n)")
+              (when (some #{"y" "yes"} (list (read-line)))
+                new-version))))))))
 
 (defn update-chromedriver! [cli-args]
-  (let [opts (utils/parse-cli cli-args cli-options)]
+  (when-some [opts (utils/parse-cli cli-args cli-options)]
     (when-some [new-version (check-version opts)]
       (-> new-version
           (download-and-unzip {:os :mac/intel}) ; XXX: support other OS downloads
