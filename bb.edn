@@ -1,7 +1,7 @@
 {:paths ["src"]
  :tasks {:requires ([skriptit.cli]
                     [skriptit.rems]
-                    [skriptit.update-chromedriver])
+                    [skriptit.chromedriver])
          ;; dummy, test args
          test (println :command-line-args *command-line-args* :pwd (System/getenv "PWD"))
 
@@ -24,7 +24,7 @@
 
          chromedriver (let [cli-args (rest *command-line-args*)]
                         (case (first *command-line-args*)
-                          "update" (skriptit.update-chromedriver/-main cli-args)
+                          "update" (skriptit.chromedriver/update-chromedriver! cli-args)
                           (println
-                           (skriptit.update-chromedriver/get-version-file))))}}
+                           (skriptit.chromedriver/get-current-and-new-versions))))}}
 
