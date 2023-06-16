@@ -5,25 +5,20 @@
             [clojure.tools.cli :refer [parse-opts]]
             [taoensso.timbre :as timbre]))
 
-(def +project-root-path+ (-> *file* ; root/src/skriptit/utils.clj
-                             (fs/parent) ; root/src/skriptit
-                             (fs/parent) ; root/src
-                             (fs/parent))) ; root
+(defn get-project-root-path []
+  (let [dir (System/getenv "BB_SCRIPTS")]
+    (assert (not (str/blank? dir))
+            "please set environment variable $BB_SCRIPTS first (e.g. to git repo root)")
+    dir))
 
 (defn parse-cli [args option-specs]
   (-> args
-      (parse-opts option-specs)
-      :options))
+      (parse-opts option-specs)))
 
 (defn print-help [option-specs]
   (println "Available options:")
   (doseq [opt option-specs]
     (apply println opt)))
-
-(defn get-logging-level [{:keys [debug]} min-level]
-  (if debug
-    :debug
-    min-level))
 
 (defn slurp-edn [x]
   (-> (slurp x)
@@ -40,7 +35,7 @@
 
 (defn- to-permission [x]
   (cond
-    (set? x)
+    (seq x)
     (->> (map x #{:r :w :x})
          (map (comp name (fnil identity "-")))
          (str/join))
@@ -85,6 +80,11 @@
       (timbre/debug #'unzip-bytes "unzipped files" file-list)
       {:dir temp-dir
        :file-list file-list})))
+
+(defn get-logging-level [{:keys [debug]} min-level]
+  (if debug
+    :debug
+    min-level))
 
 (defmacro with-logging [opts min-level & body]
   `(timbre/with-level (skriptit.utils/get-logging-level ~opts ~min-level)

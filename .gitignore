@@ -1,4 +1,6 @@
-chromedriver_version.txt
-.clj-kondo
-.lsp
-.vscode
+chromedriver_version.edn
+
+.calva/
+.clj-kondo/
+.lsp/
+.vscode/

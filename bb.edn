@@ -1,18 +1,30 @@
 {:paths ["src"]
- :tasks {
-         ; helpers
-         :init (do
-                 (defn print-cmd [x]
-                   (apply println "Running:" (:cmd x)))
-                 (defn edit-or-read [s]
-                   (let [cmd (#{"code" "vim"} (first *command-line-args*))]
-                     ; task runner fails with anonymous fn in :pre-start-fn
-                     (shell {:pre-start-fn print-cmd} (or cmd "less") s))))
-         
-         ; converted from bash scripts
-         config (edit-or-read (System/getenv "CONFIG"))
-         aliases (edit-or-read (System/getenv "ALIASES"))
+ :tasks {:requires ([skriptit.cli]
+                    [skriptit.rems]
+                    [skriptit.update-chromedriver])
+         ;; dummy, test args
+         test (println :command-line-args *command-line-args* :pwd (System/getenv "PWD"))
 
-         ; more complex scripts
-         update-chromedriver skriptit.update-chromedriver/-main
-         git skriptit.git/-main}}
+         config (skriptit.cli/edit-or-read (System/getenv "CONFIG"))
+         aliases (skriptit.cli/edit-or-read (System/getenv "ALIASES"))
+         ssh (skriptit.cli/edit-or-read (System/getenv "SSH_CONFIG"))
+         ssh-hosts (skriptit.cli/edit-or-read (System/getenv "SSH_HOSTS"))
+         gitignore (skriptit.cli/edit-or-read (System/getenv "GIT_IGNORE"))
+         lein-profiles (skriptit.cli/edit-or-read (System/getenv "LEIN_PROFILES"))
+         psgrep (skriptit.cli/psgrep *command-line-args*)
+         gpg (skriptit.cli/gpg *command-line-args*)
+
+         rems (let [cli-args (rest *command-line-args*)]
+                (case (first *command-line-args*)
+                  "db" (skriptit.rems/rems-db cli-args)
+                  "dev" (skriptit.rems/rems-dev cli-args)
+                  "shadow" (skriptit.rems/rems-shadow cli-args)
+                  "test" (skriptit.rems/rems-test cli-args)
+                  "tag" (skriptit.rems/rems-tag cli-args)))
+
+         chromedriver (let [cli-args (rest *command-line-args*)]
+                        (case (first *command-line-args*)
+                          "update" (skriptit.update-chromedriver/-main cli-args)
+                          (println
+                           (skriptit.update-chromedriver/get-version-file))))}}
+
