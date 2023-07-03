@@ -2,7 +2,8 @@
   (:require [clojure.string :as str]
             [babashka.process :refer [process shell]]))
 
-(def print-cmd {:pre-start-fn (comp (partial apply println) :cmd)})
+(defn print-cmd [process-opts]
+  (apply println "cmd:" (:cmd process-opts)))
 
 (defn wrap-quotes [s]
   (str "\"" s "\""))
@@ -16,7 +17,8 @@
 
 (defn edit-or-read [s]
   (let [cmd (some #{"code" "vim"} *command-line-args*)]
-    (shell print-cmd (or cmd "less") s)))
+    (shell {:pre-start-fn print-cmd}
+           (or cmd "less") s)))
 
 ;; find processes by name
 (defn psgrep [cli-args]
@@ -27,7 +29,10 @@
 
 (defn gpg [cli-args]
   (case (first cli-args)
-    "start" (shell print-cmd "gpg-connect-agent" "updatestartuptty" "/bye" ">" "/dev/null")
-    "stop" (shell print-cmd "gpgconf" "--kill" "gpg-agent")
-    "restart" (shell print-cmd "gpg-connect-agent" "reloadagent" "/bye")))
+    "start" (shell {:pre-start-fn print-cmd}
+                   "gpg-connect-agent" "updatestartuptty" "/bye" ">" "/dev/null")
+    "stop" (shell {:pre-start-fn print-cmd}
+                  "gpgconf" "--kill" "gpg-agent")
+    "restart" (shell {:pre-start-fn print-cmd}
+                     "gpg-connect-agent" "reloadagent" "/bye")))
 

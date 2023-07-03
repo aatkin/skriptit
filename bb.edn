@@ -14,17 +14,7 @@
          psgrep (skriptit.cli/psgrep *command-line-args*)
          gpg (skriptit.cli/gpg *command-line-args*)
 
-         rems (let [cli-args (rest *command-line-args*)]
-                (case (first *command-line-args*)
-                  "db" (skriptit.rems/rems-db cli-args)
-                  "dev" (skriptit.rems/rems-dev cli-args)
-                  "shadow" (skriptit.rems/rems-shadow cli-args)
-                  "test" (skriptit.rems/rems-test cli-args)
-                  "tag" (skriptit.rems/rems-tag cli-args)))
+         rems (skriptit.rems/cli *command-line-args*)
 
-         chromedriver (let [cli-args (rest *command-line-args*)]
-                        (case (first *command-line-args*)
-                          "update" (skriptit.chromedriver/update-chromedriver! cli-args)
-                          (println
-                           (skriptit.chromedriver/get-current-and-new-versions))))}}
+         chromedriver (skriptit.chromedriver/cli *command-line-args*)}}
 

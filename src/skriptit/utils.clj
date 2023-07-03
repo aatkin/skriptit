@@ -2,8 +2,7 @@
   (:require [babashka.fs :as fs]
             [clojure.edn :as edn]
             [clojure.string :as str]
-            [clojure.tools.cli :refer [parse-opts]]
-            [taoensso.timbre :as timbre]))
+            [clojure.tools.cli :refer [parse-opts]]))
 
 (defn get-project-root-path []
   (let [dir (System/getenv "BB_SCRIPTS")]
@@ -39,7 +38,7 @@
   (let [temp-dir (fs/create-temp-dir)
         path (fs/path temp-dir filename)]
     (fs/write-bytes path data)
-    (timbre/debug #'write-to-file "wrote bytes to" (str path))
+    (println #'write-to-file "wrote bytes to" (str path))
     (fs/file path)))
 
 (defn- to-permission [x]
@@ -86,18 +85,9 @@
         (write-to-file (str "unzip_" (System/currentTimeMillis)))
         (fs/unzip temp-dir))
     (let [file-list (get-file-list temp-dir)]
-      (timbre/debug #'unzip-bytes "unzipped files" file-list)
+      (println #'unzip-bytes "unzipped files" file-list)
       {:dir temp-dir
        :file-list file-list})))
 
-(defn get-logging-level [{:keys [debug]} min-level]
-  (if debug
-    :debug
-    min-level))
-
-(defmacro with-logging [opts min-level & body]
-  `(timbre/with-level (skriptit.utils/get-logging-level ~opts ~min-level)
-     (timbre/debug :main/start ~opts)
-     ~@body
-     (timbre/debug :main/end)))
-
+(defn parse-int [x]
+  (some-> x str (Integer/parseInt)))

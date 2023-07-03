@@ -1,8 +1,7 @@
 (ns skriptit.chromedriver
   (:require [skriptit.utils :as utils]
             [babashka.curl :as curl]
-            [babashka.fs :as fs]
-            [taoensso.timbre :as timbre]))
+            [babashka.fs :as fs]))
 
 (def +chromedriver-google-uri+ "https://chromedriver.storage.googleapis.com")
 (def +version-file-path+ (str (fs/path (utils/get-project-root-path)
@@ -43,7 +42,7 @@
     (if (:force opts)
       new-version
       (if (= current-version new-version)
-        (timbre/info "already on latest version:" current-version)
+        (println "already on latest version:" current-version)
         (do
           (println "latest chromedriver version:" new-version (str "(current: " current-version ")"))
           (println "NB: this will overwrite current file in" +target-path+)
@@ -66,6 +65,13 @@
           (utils/chmod-file {:owner #{:r :w :x}
                              :group #{:r :x}
                              :public #{:r :x}}))
-      (timbre/info "wrote to file" +target-path+)
+      (println "wrote to file" +target-path+)
       (spit +version-file-path+ {:current new-version}))))
+
+(defn cli [cli-args]
+  (let [cmd (first cli-args)
+        args (rest cli-args)]
+    (case cmd
+      "status" (println (skriptit.chromedriver/get-current-and-new-versions))
+      (skriptit.chromedriver/update-chromedriver! args))))
 
