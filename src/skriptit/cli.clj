@@ -35,4 +35,3 @@
                   "gpgconf" "--kill" "gpg-agent")
     "restart" (shell {:pre-start-fn print-cmd}
                      "gpg-connect-agent" "reloadagent" "/bye")))
-
