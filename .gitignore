@@ -1,4 +1,4 @@
-chromedriver_version.edn
+resources/
 
 .calva/
 .clj-kondo/

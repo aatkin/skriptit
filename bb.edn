@@ -1,20 +1,23 @@
 {:paths ["src"]
- :tasks {:requires ([skriptit.cli]
-                    [skriptit.rems]
-                    [skriptit.chromedriver])
+ :tasks {:requires ([skriptit.chromedriver]
+                    [skriptit.cli]
+                    [skriptit.dirb]
+                    [skriptit.git]
+                    [skriptit.rems])
          ;; dummy, test args
          test (println :command-line-args *command-line-args* :pwd (System/getenv "PWD"))
 
-         config (skriptit.cli/edit-or-read (System/getenv "CONFIG"))
          aliases (skriptit.cli/edit-or-read (System/getenv "ALIASES"))
-         ssh (skriptit.cli/edit-or-read (System/getenv "SSH_CONFIG"))
-         ssh-hosts (skriptit.cli/edit-or-read (System/getenv "SSH_HOSTS"))
+         config (skriptit.cli/edit-or-read (System/getenv "CONFIG"))
          gitignore (skriptit.cli/edit-or-read (System/getenv "GIT_IGNORE"))
          lein-profiles (skriptit.cli/edit-or-read (System/getenv "LEIN_PROFILES"))
-         psgrep (skriptit.cli/psgrep *command-line-args*)
+         ssh (skriptit.cli/edit-or-read (System/getenv "SSH_CONFIG"))
+         ssh-hosts (skriptit.cli/edit-or-read (System/getenv "SSH_HOSTS"))
+
+         chromedriver (skriptit.chromedriver/cli *command-line-args*)
+         dirb (skriptit.dirb/cli *command-line-args*)
+         git (skriptit.git/cli *command-line-args*)
          gpg (skriptit.cli/gpg *command-line-args*)
-
-         rems (skriptit.rems/cli *command-line-args*)
-
-         chromedriver (skriptit.chromedriver/cli *command-line-args*)}}
+         psgrep (skriptit.cli/psgrep *command-line-args*)
+         rems (skriptit.rems/cli *command-line-args*)}}
 
