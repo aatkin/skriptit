@@ -1,9 +1,23 @@
 (ns skriptit.cli
   (:require [clojure.string :as str]
-            [babashka.process :refer [process shell]]))
+            [babashka.process :refer [process shell]]
+            [skriptit.utils :refer [extract-vargs plus-keywords]]))
 
 (defn print-cmd [process-opts]
   (apply println "cmd:" (:cmd process-opts)))
+
+(defn shell*
+  "As shell, but prints :cmd as default option."
+  [& args]
+  (let [args (filterv some? (extract-vargs args))
+        opts? (first args)]
+    (if (map? opts?)
+      (apply shell
+             (merge {:pre-start-fn print-cmd} opts?)
+             (rest args))
+      (apply shell
+             {:pre-start-fn print-cmd}
+             args))))
 
 (defn wrap-quotes [s]
   (str "\"" s "\""))
@@ -17,8 +31,7 @@
 
 (defn edit-or-read [s]
   (let [cmd (some #{"code" "vim"} *command-line-args*)]
-    (shell {:pre-start-fn print-cmd}
-           (or cmd "less") s)))
+    (shell* (or cmd "less") s)))
 
 ;; find processes by name
 (defn psgrep [cli-args]
@@ -29,9 +42,11 @@
 
 (defn gpg [cli-args]
   (case (first cli-args)
-    "start" (shell {:pre-start-fn print-cmd}
-                   "gpg-connect-agent" "updatestartuptty" "/bye" ">" "/dev/null")
-    "stop" (shell {:pre-start-fn print-cmd}
-                  "gpgconf" "--kill" "gpg-agent")
-    "restart" (shell {:pre-start-fn print-cmd}
-                     "gpg-connect-agent" "reloadagent" "/bye")))
+    "start" (shell* "gpg-connect-agent" "updatestartuptty" "/bye" ">" "/dev/null")
+    "stop" (shell* "gpgconf" "--kill" "gpg-agent")
+    "restart" (shell* "gpg-connect-agent" "reloadagent" "/bye")))
+
+(defn arg=
+  "Is `arg` one of given `matches`?"
+  [arg & matches]
+  (some #{arg} (-> matches extract-vargs plus-keywords)))

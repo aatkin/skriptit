@@ -91,3 +91,16 @@
 
 (defn parse-int [x]
   (some-> x str (Integer/parseInt)))
+
+(defn plus-keywords [& args]
+  (->> args
+       (into [] (mapcat (fn [s]
+                          [s (str ":" s)])))))
+
+(defn extract-vargs
+  "If first element of `args` coll is sequential, return that element instead.
+   Useful for working with variable argument functions"
+  [args]
+  (if (sequential? (first args))
+    (first args)
+    args))
