@@ -12,6 +12,7 @@
          config (skriptit.cli/edit-or-read (System/getenv "CONFIG"))
          gitignore (skriptit.cli/edit-or-read (System/getenv "GIT_IGNORE"))
          lein-profiles (skriptit.cli/edit-or-read (System/getenv "LEIN_PROFILES"))
+         skriptit (skriptit.cli/edit-or-read (System/getenv "SKRIPTIT_CONFIG"))
          ssh (skriptit.cli/edit-or-read (System/getenv "SSH_CONFIG"))
          ssh-hosts (skriptit.cli/edit-or-read (System/getenv "SSH_HOSTS"))
 
