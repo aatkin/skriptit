@@ -55,23 +55,20 @@
               (when (some #{"y" "yes"} (list (read-line)))
                 new-version))))))))
 
-(defn update-chromedriver! [cli-args]
-  (when-some [opts (utils/parse-cli cli-args cli-options)]
-    (when-some [new-version (check-version opts)]
-      (-> new-version
-          (download-and-unzip {:os :mac/intel}) ; XXX: support other OS downloads
-          (fs/copy +target-path+ {:replace-existing true})
-          (fs/file)
-          (utils/chmod-file {:owner #{:r :w :x}
-                             :group #{:r :x}
-                             :public #{:r :x}}))
-      (println "wrote to file" +target-path+)
-      (spit +version-file-path+ {:current new-version}))))
+(defn update-chromedriver! [opts]
+  (when-some [new-version (check-version opts)]
+    (-> new-version
+        (download-and-unzip {:os :mac/intel}) ; XXX: support other OS downloads
+        (fs/copy +target-path+ {:replace-existing true})
+        (fs/file)
+        (utils/chmod-file {:owner #{:r :w :x}
+                           :group #{:r :x}
+                           :public #{:r :x}}))
+    (println "wrote to file" +target-path+)
+    (spit +version-file-path+ {:current new-version})))
 
-(defn cli [cli-args]
-  (let [cmd (first cli-args)
-        args (rest cli-args)]
-    (case cmd
-      "status" (println (skriptit.chromedriver/get-current-and-new-versions))
-      (skriptit.chromedriver/update-chromedriver! args))))
+(defn cli [cmd & opts]
+  (case cmd
+    "status" (println (get-current-and-new-versions))
+    (update-chromedriver! (utils/parse-cli opts cli-options))))
 
