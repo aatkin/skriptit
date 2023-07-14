@@ -1,6 +1,6 @@
 (ns skriptit.git
   (:require [babashka.process :refer [shell]]
-            [clojure.string :as str]))
+            #_[clojure.string :as str]))
 
 (defn inside-git-repo? []
   (= 0 (:exit (shell {:continue true
