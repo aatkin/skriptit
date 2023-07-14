@@ -1,22 +1,4 @@
 (ns skriptit.dirb
-  "Directory saving/changing utility, inspired by similarly named bash utility.
-   Works smoother with some shell helpers: (bash example)
-
-   s() {
-       bb --config $BB_SCRIPTS/bb.edn $@
-   }
-
-   alias ss='s dirb save'
-
-   sg() {
-       if [[ ! -z \"$1\" ]]; then
-           cd $(s dirb \"$1\")
-       fi
-   }
-   ss skriptit # save current pwd
-   cd /other/dir
-   sg skriptit # go back to saved directory
-  "
   (:require [babashka.fs :as fs]
             [skriptit.utils :as utils]))
 
@@ -26,22 +8,36 @@
 
 (defn write-db!
   ([m]
-   (spit +db-file-path+ m))
+   (println :dirb/save (vec (sort (keys m))))
+   (spit +db-file-path+ m)
+   m)
   ([m k v]
-   (println :dirb/new-entry {k v})
-   (write-db! (assoc m k v))))
+   (or (cond
+         (nil? k) (println :dirb/no-changes)
+         (nil? v) (println :dirb/no-changes)
+         :else (let [updated (assoc m k v)]
+                 (println :dirb/save-entry (pr-str {k v}))
+                 (spit +db-file-path+ updated)
+                 updated))
+       m)))
 
 (defn read-db! []
   (when-not (.exists (fs/file +db-file-path+))
     (write-db! {}))
-  (utils/slurp-edn +db-file-path+))
+  (into (sorted-map) (utils/slurp-edn +db-file-path+)))
 
 (defn cli [cli-args]
   (if (seq cli-args)
     (case (first cli-args)
+      "autocomplete" (doseq [entry (read-db!)]
+                       (println (key entry)))
       "save" (-> (read-db!)
                  (write-db! (second cli-args) (System/getenv "PWD")))
+      "delete" (-> (read-db!)
+                   (dissoc (second cli-args))
+                   (write-db!))
       (some-> (read-db!)
               (get (first cli-args))
               (println)))
-    (println :dirb/current-entries (pr-str (read-db!)))))
+    (doseq [entry (read-db!)]
+      (println (key entry) "->" (val entry)))))
