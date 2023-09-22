@@ -1,6 +1,7 @@
 (ns skriptit.github
   (:require [babashka.process :refer [shell]]
-            [clojure.string :as str]))
+            [clojure.string :as str]
+            [skriptit.utils :as utils]))
 
 (def ^:private issue-template
   {:markdown (str "{{if .labels}}"
@@ -30,4 +31,5 @@
         opts (rest cli-args)]
     (case cmd
       "issue" (apply view-issue opts)
-      (println "available commands: issue"))))
+      (utils/print-table [:cmd :flags]
+                         {:cmd "issue" :flags "[--template]"}))))
