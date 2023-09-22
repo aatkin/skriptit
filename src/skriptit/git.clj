@@ -1,6 +1,7 @@
 (ns skriptit.git
-  (:require [babashka.process :refer [shell]]
-            #_[clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [babashka.process :refer [process shell]]
+            [skriptit.utils :as utils]))
 
 (defn inside-git-repo? []
   (= 0 (:exit (shell {:continue true
@@ -26,8 +27,30 @@
                "HEAD")
         :out)))
 
+(defn changed-files [opts]
+  (when (inside-git-repo?)
+    (let [staged? (some #{"--staged" "-s"} opts)
+          created? (some #{"--created" "-c"} opts)
+          changed "^ M "
+          changed-staged "^M  "
+          created (when created?
+                    "^\\?\\? ")
+          created-staged (when created?
+                           "^A  ")]
+      (-> (process "git status" "-s")
+          (process "egrep" (str/join "|" (for [grep-line (if staged?
+                                                           [changed-staged created-staged]
+                                                           [changed created])
+                                               :when grep-line]
+                                           (str "(" grep-line ")"))))
+          (shell "awk" "{ print $2 }")))))
+
 (defn cli [cli-args]
   (case (first cli-args)
+    "changed-files" (changed-files (rest cli-args))
     "find-tags" (some-> (find-tags) print)
     "short-hash" (some-> (short-hash) print)
-    (println "cmds: find-tags short-hash")))
+    (utils/print-table [:cmd :flags]
+                       {:cmd "changed-files" :flags "[-s | --staged] [-c | --created]"}
+                       {:cmd "find-tags"}
+                       {:cmd "short-hash"})))

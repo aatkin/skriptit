@@ -2,6 +2,7 @@
   (:require [babashka.fs :as fs]
             [cheshire.core :as json]
             [clojure.edn :as edn]
+            [clojure.pprint]
             [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]]))
 
@@ -96,3 +97,7 @@
 
 (defn parse-int [x]
   (some-> x str (Integer/parseInt)))
+
+(defn print-table
+  ([ks & rows] (clojure.pprint/print-table ks rows))
+  ([rows] (clojure.pprint/print-table rows)))
