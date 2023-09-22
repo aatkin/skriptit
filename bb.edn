@@ -3,6 +3,7 @@
                     [skriptit.cli]
                     [skriptit.dirb]
                     [skriptit.git]
+                    [skriptit.github]
                     [skriptit.rems])
          ;; dummy, test args
          test (println :command-line-args *command-line-args* :pwd (System/getenv "PWD"))
@@ -23,5 +24,6 @@
          ;; more complex scripts
          chromedriver (skriptit.chromedriver/cli *command-line-args*)
          dirb (skriptit.dirb/cli *command-line-args*)
+         gh (skriptit.github/cli *command-line-args*)
          git (skriptit.git/cli *command-line-args*)
          rems (skriptit.rems/cli *command-line-args*)}}
