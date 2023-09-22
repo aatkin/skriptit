@@ -27,17 +27,23 @@
   (into (sorted-map) (utils/slurp-edn +db-file-path+)))
 
 (defn cli [cli-args]
-  (if (seq cli-args)
-    (case (first cli-args)
-      "autocomplete" (doseq [entry (read-db!)]
-                       (println (key entry)))
-      "save" (-> (read-db!)
-                 (write-db! (second cli-args) (System/getenv "PWD")))
-      "delete" (-> (read-db!)
-                   (dissoc (second cli-args))
-                   (write-db!))
-      (some-> (read-db!)
-              (get (first cli-args))
-              (println)))
-    (doseq [entry (read-db!)]
-      (println (key entry) "->" (val entry)))))
+  (let [cmd (first cli-args)
+        opts (rest cli-args)]
+    (cond
+      (and cmd (seq opts)) (case cmd
+                             "save" (let [k (first opts)
+                                          v (System/getenv "PWD")
+                                          db (read-db!)]
+                                      (write-db! db k v))
+                             "delete" (let [k (first opts)
+                                            db (dissoc (read-db!) k)]
+                                        (write-db! db)))
+      cmd (case cmd
+            "autocomplete" (doseq [entry (read-db!)]
+                             (println (key entry)))
+            (some-> (read-db!)
+                    (get (first cli-args))
+                    (println)))
+
+      :else (doseq [entry (read-db!)]
+              (println (key entry) "->" (val entry))))))
