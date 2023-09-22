@@ -1,5 +1,6 @@
 (ns skriptit.utils
   (:require [babashka.fs :as fs]
+            [cheshire.core :as json]
             [clojure.edn :as edn]
             [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]]))
@@ -31,6 +32,10 @@
 (defn slurp-edn [x]
   (-> (slurp x)
       (edn/read-string)))
+
+(defn slurp-json [x]
+  (-> (slurp x)
+      (json/parse-string true)))
 
 (defn write-to-file
   "Create temp dir and write data to filename in temp dir. Returns File."

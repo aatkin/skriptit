@@ -3,35 +3,48 @@
             [babashka.curl :as curl]
             [babashka.fs :as fs]))
 
-(def +chromedriver-google-uri+ "https://chromedriver.storage.googleapis.com")
+(def stable-channel
+  (delay
+    (-> (utils/slurp-json "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json")
+        (get-in [:channels :Stable]))))
+
 (def +version-file-path+ (str (fs/path (utils/get-project-root-path)
                                        "resources"
                                        "chromedriver_version.edn")))
-(def +target-path+ (str (fs/path "/usr/local/bin" "chromedriver")))
+(def +target-path+ (str (fs/path "/usr/local/bin"
+                                 "chromedriver")))
 
-(def ^:private url-for-os
-  {:mac/intel "chromedriver_mac64.zip"})
+(defn get-url [platform]
+  (first (for [driver (get-in @stable-channel [:downloads :chromedriver])
+               :when (= platform (:platform driver))]
+           (:url driver))))
 
-(defn- download-and-unzip [version & [opts]]
-  (let [uri (str +chromedriver-google-uri+
-                 "/" version
-                 "/" (get url-for-os (:os opts :mac/intel)))
-        response (curl/get uri {:as :bytes})
-        files (utils/unzip-bytes {:data (:body response)})]
-    (assert (some #{"chromedriver"} (:file-list files))
-            "expected unzipped contents to contain chromedriver")
-    (fs/file (:dir files) "chromedriver")))
+(defn get-file-name [platform]
+  (case platform
+    "mac-x64" "chromedriver-mac-x64"
+    "chromedriver"))
+
+(def platforms {:mac/intel "mac-x64"})
+(defn get-platform [opts]
+  (get platforms (:os opts :mac/intel)))
+
+(defn- download-and-unzip [& [opts]]
+  (let [platform (get-platform opts)
+        response (curl/get (get-url platform) {:as :bytes})
+        files (utils/unzip-bytes {:data (:body response)})
+        f (fs/file (:dir files) (get-file-name platform) "chromedriver")]
+    (assert (fs/exists? f) (str "expected unzipped contents to contain chromedriver"))
+    f))
 
 ;; https://book.babashka.org/#_parsing_command_line_arguments
-(def cli-options [["-d" "--debug" "Debug mode"]
-                  ["-f" "--force" "Force update"]
+(def cli-options [["-f" "--force" "Force update"]
                   ["-y" "--yes" "Run script without having it ask any questions"]])
 
 (defn get-current-and-new-versions []
   (let [version-file (when (.exists (fs/file +version-file-path+))
                        (utils/slurp-edn +version-file-path+))
         current-version (:current version-file)
-        version (:body (curl/get (str +chromedriver-google-uri+ "/LATEST_RELEASE")))]
+        version (:version @stable-channel)]
     {:current current-version
      :new version}))
 
@@ -39,21 +52,27 @@
   (let [versions (get-current-and-new-versions)
         current-version (:current versions)
         new-version (:new versions)]
-    (if (:force opts)
+    (cond
+      (:force opts)
       new-version
-      (if (= current-version new-version)
-        (println "already on latest version:" current-version)
-        (do
-          (println "latest chromedriver version:" new-version (str "(current: " current-version ")"))
-          (println "NB: this will overwrite current file in" +target-path+)
-          (if (:yes opts)
-            (do
-              (println "option :yes set, proceeding automatically")
-              new-version)
-            (do
-              (println "do you want to proceed? (y/n)")
-              (when (some #{"y" "yes"} (list (read-line)))
-                new-version))))))))
+
+      (= current-version new-version)
+      (println "already on latest version:" current-version)
+
+      (:yes opts)
+      (do
+        (println "latest chromedriver version:" new-version (str "(current: " current-version ")"))
+        (println "NB: this will overwrite current file in" +target-path+)
+        (println "option :yes set, proceeding automatically")
+        new-version)
+
+      :else
+      (do
+        (println "latest chromedriver version:" new-version (str "(current: " current-version ")"))
+        (println "NB: this will overwrite current file in" +target-path+)
+        (println "do you want to proceed? (y/n)")
+        (when (some #{"y" "yes"} (list (read-line)))
+          new-version)))))
 
 (defn update-chromedriver! [opts]
   (when-some [new-version (check-version opts)]
@@ -67,8 +86,9 @@
     (println "wrote to file" +target-path+)
     (spit +version-file-path+ {:current new-version})))
 
-(defn cli [cmd & opts]
-  (case cmd
-    "status" (println (get-current-and-new-versions))
-    (update-chromedriver! (utils/parse-cli opts cli-options))))
-
+(defn cli [cli-args]
+  (let [cmd (first cli-args)
+        opts (rest cli-args)]
+    (case cmd
+      "update" (update-chromedriver! (utils/parse-cli opts cli-options))
+      (println (get-current-and-new-versions)))))
