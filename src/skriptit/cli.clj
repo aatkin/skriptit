@@ -1,10 +1,14 @@
 (ns skriptit.cli
   (:require [clojure.string :as str]
-            [babashka.process :refer [process shell]]
-            [skriptit.utils :refer [extract-vargs plus-keywords]]))
+            [babashka.process :refer [process shell]]))
 
-(defn print-cmd [process-opts]
+(defn- print-cmd [process-opts]
   (apply println "cmd:" (:cmd process-opts)))
+
+(defn- extract-vargs [args]
+  (if (sequential? (first args))
+    (first args)
+    args))
 
 (defn shell*
   "As shell, but prints :cmd as default option."
@@ -19,15 +23,15 @@
              {:pre-start-fn print-cmd}
              args))))
 
-(defn wrap-quotes [s]
+(defn quote-str [s]
   (str "\"" s "\""))
 
-(defn wrap-vec [& args]
+(defn quote-vec [& args]
   (str "[" (str/join " " (remove nil? args)) "]"))
 
 (defn lein-dep [dependency & [version]]
-  (wrap-vec dependency
-            (some-> version (wrap-quotes))))
+  (quote-vec dependency
+             (some-> version quote-str)))
 
 (defn edit-or-read [s]
   (let [cmd (some #{"code" "vim"} *command-line-args*)]
@@ -45,8 +49,3 @@
     "start" (shell* "gpg-connect-agent" "updatestartuptty" "/bye" ">" "/dev/null")
     "stop" (shell* "gpgconf" "--kill" "gpg-agent")
     "restart" (shell* "gpg-connect-agent" "reloadagent" "/bye")))
-
-(defn arg=
-  "Is `arg` one of given `matches`?"
-  [arg & matches]
-  (some #{arg} (-> matches extract-vargs plus-keywords)))
