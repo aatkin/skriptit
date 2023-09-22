@@ -1,29 +1,29 @@
 {:paths ["src"]
- :tasks {:requires ([skriptit.chromedriver]
-                    [skriptit.cli]
-                    [skriptit.dirb]
-                    [skriptit.git]
-                    [skriptit.github]
-                    [skriptit.rems])
+ :tasks {:requires ([skriptit.chromedriver :as chromedriver]
+                    [skriptit.cli :as cli :refer [edit-or-read run]]
+                    [skriptit.dirb :as dirb]
+                    [skriptit.git :as git]
+                    [skriptit.github :as github]
+                    [skriptit.rems :as rems])
          ;; dummy, test args
          test (println :command-line-args *command-line-args* :pwd (System/getenv "PWD"))
 
          ;; simple read/write files
-         aliases (skriptit.cli/edit-or-read (System/getenv "ALIASES"))
-         config (skriptit.cli/edit-or-read (System/getenv "CONFIG"))
-         gitignore (skriptit.cli/edit-or-read (System/getenv "GIT_IGNORE"))
-         lein-profiles (skriptit.cli/edit-or-read (System/getenv "LEIN_PROFILES"))
-         skriptit (skriptit.cli/edit-or-read (System/getenv "SKRIPTIT_CONFIG"))
-         ssh (skriptit.cli/edit-or-read (System/getenv "SSH_CONFIG"))
-         ssh-hosts (skriptit.cli/edit-or-read (System/getenv "SSH_HOSTS"))
+         aliases (edit-or-read (System/getenv "ALIASES"))
+         config (edit-or-read (System/getenv "CONFIG"))
+         gitignore (edit-or-read (System/getenv "GIT_IGNORE"))
+         lein-profiles (edit-or-read (System/getenv "LEIN_PROFILES"))
+         skriptit (edit-or-read (System/getenv "SKRIPTIT_CONFIG"))
+         ssh (edit-or-read (System/getenv "SSH_CONFIG"))
+         ssh-hosts (edit-or-read (System/getenv "SSH_HOSTS"))
 
          ;; scripts without namespace
-         gpg (skriptit.cli/gpg *command-line-args*)
-         psgrep (skriptit.cli/psgrep *command-line-args*)
+         gpg (cli/gpg *command-line-args*)
+         psgrep (cli/psgrep *command-line-args*)
 
          ;; more complex scripts
-         chromedriver (skriptit.chromedriver/cli *command-line-args*)
-         dirb (skriptit.dirb/cli *command-line-args*)
-         gh (skriptit.github/cli *command-line-args*)
-         git (skriptit.git/cli *command-line-args*)
-         rems (skriptit.rems/cli *command-line-args*)}}
+         chromedriver (chromedriver/cli *command-line-args*)
+         dirb (dirb/cli *command-line-args*)
+         gh (github/cli *command-line-args*)
+         git (git/cli *command-line-args*)
+         rems (run rems/commands *command-line-args*)}}

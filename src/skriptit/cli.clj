@@ -1,6 +1,8 @@
 (ns skriptit.cli
-  (:require [clojure.string :as str]
-            [babashka.process :refer [process shell]]))
+  (:require [clojure.pprint]
+            [clojure.string :as str]
+            [babashka.process :refer [process shell]]
+            [skriptit.utils :as utils]))
 
 (defn- print-cmd [process-opts]
   (apply println "cmd:" (:cmd process-opts)))
@@ -9,6 +11,20 @@
   (if (sequential? (first args))
     (first args)
     args))
+
+(defn cmd-meta [fn-symbol]
+  (let [m (meta fn-symbol)]
+    {:cmd (:skriptit/cmd m)
+     :params (:skriptit/params m)
+     :flags (:skriptit/flags m)}))
+
+(defn run [fns cli-args]
+  (let [cmd (first cli-args)
+        opts (rest cli-args)
+        get-cmd (comp #{cmd} :cmd cmd-meta)]
+    (if-some [f (utils/find-first get-cmd fns)]
+      (apply f opts)
+      (clojure.pprint/print-table (mapv cmd-meta fns)))))
 
 (defn shell*
   "As shell, but prints :cmd as default option."

@@ -1,5 +1,6 @@
 (ns skriptit.git
-  (:require [clojure.string :as str]
+  (:require [clojure.pprint]
+            [clojure.string :as str]
             [babashka.process :refer [process shell]]
             [skriptit.utils :as utils]))
 
@@ -50,7 +51,8 @@
     "changed-files" (changed-files (rest cli-args))
     "find-tags" (some-> (find-tags) print)
     "short-hash" (some-> (short-hash) print)
-    (utils/print-table [:cmd :flags]
-                       {:cmd "changed-files" :flags "[-s | --staged] [-c | --created]"}
-                       {:cmd "find-tags"}
-                       {:cmd "short-hash"})))
+    (clojure.pprint/print-table
+     [:cmd :flags]
+     [{:cmd "changed-files" :flags "[-s | --staged] [-c | --created]"}
+      {:cmd "find-tags"}
+      {:cmd "short-hash"}])))
