@@ -42,8 +42,8 @@
   [data filename]
   (let [temp-dir (fs/create-temp-dir)
         path (fs/path temp-dir filename)]
+    (println #'write-to-file "writing bytes to" (str path))
     (fs/write-bytes path data)
-    (println #'write-to-file "wrote bytes to" (str path))
     (fs/file path)))
 
 (defn- to-permission [x]
@@ -84,7 +84,7 @@
     (->> (fs/list-dir dir)
          (into #{} (map (comp to-filename str))))))
 
-(defn unzip-bytes [{:keys [data]}]
+(defn unzip-bytes [data]
   (let [temp-dir (fs/create-temp-dir)]
     (-> data
         (write-to-file (str "unzip_" (System/currentTimeMillis)))

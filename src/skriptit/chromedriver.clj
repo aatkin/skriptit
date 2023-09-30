@@ -8,31 +8,32 @@
     (-> (utils/slurp-json "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json")
         (get-in [:channels :Stable]))))
 
+(def urls
+  (delay
+    (into {} (for [driver (get-in @stable-channel [:downloads :chromedriver])
+                   :let [platform (:platform driver)
+                         url (:url driver)]]
+               [platform url]))))
+
 (def +version-file-path+ (str (fs/path (utils/get-project-root-path)
                                        "resources"
                                        "chromedriver_version.edn")))
-(def +target-path+ (str (fs/path "/usr/local/bin"
-                                 "chromedriver")))
 
-(defn get-url [platform]
-  (first (for [driver (get-in @stable-channel [:downloads :chromedriver])
-               :when (= platform (:platform driver))]
-           (:url driver))))
+(def +target-path+ (str (fs/path "usr" "local" "bin" "chromedriver")))
 
 (defn get-file-name [platform]
-  (case platform
-    "mac-x64" "chromedriver-mac-x64"
-    "chromedriver"))
+  (let [dir (case platform
+              "mac-x64" "chromedriver-mac-x64"
+              "mac-arm64" "chromedriver-mac-arm64"
+              "linux64" "chromedriver-linux64"
+              "win32" "chromedriver-win32"
+              "win64" "chromedriver-win64")]
+    (str dir "/chromedriver")))
 
-(def platforms {:mac/intel "mac-x64"})
-(defn get-platform [opts]
-  (get platforms (:os opts :mac/intel)))
-
-(defn- download-and-unzip [& [opts]]
-  (let [platform (get-platform opts)
-        response (curl/get (get-url platform) {:as :bytes})
-        files (utils/unzip-bytes {:data (:body response)})
-        f (fs/file (:dir files) (get-file-name platform) "chromedriver")]
+(defn- download-and-unzip [{:keys [platform] :as _opts}]
+  (let [response (curl/get (get @urls platform) {:as :bytes})
+        files (utils/unzip-bytes (:body response))
+        f (fs/file (:dir files) (get-file-name platform))]
     (assert (fs/exists? f) (str "expected unzipped contents to contain chromedriver"))
     f))
 
@@ -76,8 +77,7 @@
 
 (defn update-chromedriver! [opts]
   (when-some [new-version (check-version opts)]
-    (-> new-version
-        (download-and-unzip {:os :mac/intel}) ; XXX: support other OS downloads
+    (-> (download-and-unzip {:platform "mac-x64"}) ; XXX: support other OS downloads
         (fs/copy +target-path+ {:replace-existing true})
         (fs/file)
         (utils/chmod-file {:owner #{:r :w :x}
