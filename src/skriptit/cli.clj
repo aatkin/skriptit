@@ -39,26 +39,26 @@
              {:pre-start-fn print-cmd}
              args))))
 
-(defn quote-str [s]
-  (str "\"" s "\""))
-
-(defn quote-vec [& args]
-  (str "[" (str/join " " (remove nil? args)) "]"))
-
-(defn lein-dep [dependency & [version]]
-  (quote-vec dependency
-             (some-> version quote-str)))
-
 (defn edit-or-read [s]
   (let [cmd (some #{"code" "vim"} *command-line-args*)]
     (shell* (or cmd "less") s)))
 
-;; find processes by name
+(defn awk-print-columns [columns]
+  (let [columns (partition 2 (interleave (map name columns)
+                                         (map inc (range))))]
+    (for [[col idx] columns]
+      [col (str "$" idx)])))
+
 (defn psgrep [cli-args]
-  (-> (process "ps aux")
-      (process "grep" (first cli-args))
-      (process "grep -v grep")
-      (shell "awk" "{ print $2, $10, $11 }")))
+  (let [grep (first cli-args)
+        columns (->> ['user 'pid 'start 'time 'command]
+                     (map name)
+                     (str/join ","))
+        ps (shell {:out :string} "ps" "-o" columns)]
+    (shell {:in (:out ps)} "head" "-n" 1) ; print header
+    (-> (process {:in (:out ps)} "grep" grep)
+        (shell "grep" "-v" "grep") ; ignore grep itself
+        )))
 
 (defn gpg [cli-args]
   (case (first cli-args)
