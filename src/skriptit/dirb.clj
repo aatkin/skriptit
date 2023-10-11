@@ -2,9 +2,12 @@
   (:require [babashka.fs :as fs]
             [skriptit.utils :as utils]))
 
-(def +db-file-path+ (str (fs/path (utils/get-project-root-path)
-                                  "resources"
-                                  "dirb.edn")))
+(def +db-file-path+ (str (fs/path (utils/resources-dir!) "dirb.edn")))
+
+(when-not (fs/exists? +db-file-path+)
+  (fs/create-file +db-file-path+)
+  (-> (str (fs/absolutize +db-file-path+))
+      (spit {})))
 
 (defn write-db!
   ([m]
@@ -22,8 +25,6 @@
        m)))
 
 (defn read-db! []
-  (when-not (.exists (fs/file +db-file-path+))
-    (write-db! {}))
   (into (sorted-map) (utils/slurp-edn +db-file-path+)))
 
 (defn cli [cli-args]

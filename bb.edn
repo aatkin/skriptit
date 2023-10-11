@@ -1,6 +1,6 @@
 {:paths ["src"]
  :tasks {:requires ([skriptit.chromedriver :as chromedriver]
-                    [skriptit.cli :as cli :refer [edit-or-read run]]
+                    [skriptit.cli :as cli :refer [get-env edit-or-read run]]
                     [skriptit.dirb :as dirb]
                     [skriptit.git :as git]
                     [skriptit.github :as github]
@@ -9,13 +9,13 @@
          test (println :command-line-args *command-line-args* :pwd (System/getenv "PWD"))
 
          ;; simple read/write files
-         aliases (edit-or-read (System/getenv "ALIASES"))
-         config (edit-or-read (System/getenv "CONFIG"))
-         gitignore (edit-or-read (System/getenv "GIT_IGNORE"))
-         lein-profiles (edit-or-read (System/getenv "LEIN_PROFILES"))
-         skriptit (edit-or-read (System/getenv "SKRIPTIT_CONFIG"))
-         ssh (edit-or-read (System/getenv "SSH_CONFIG"))
-         ssh-hosts (edit-or-read (System/getenv "SSH_HOSTS"))
+         aliases (edit-or-read (get-env "ALIASES"))
+         config (edit-or-read (get-env "CONFIG"))
+         gitignore (edit-or-read (get-env "GIT_IGNORE"))
+         lein-profiles (edit-or-read (get-env "LEIN_PROFILES"))
+         skriptit (edit-or-read (get-env "SKRIPTIT_CONFIG"))
+         ssh (edit-or-read (get-env "SSH_CONFIG"))
+         ssh-hosts (edit-or-read (get-env "SSH_HOSTS"))
 
          ;; scripts without namespace
          gpg (cli/gpg *command-line-args*)

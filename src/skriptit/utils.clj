@@ -11,6 +11,14 @@
             "please set environment variable $BB_SCRIPTS first (e.g. to git repo root)")
     dir))
 
+(defn resources-dir!
+  "Get path to project/root/resources. Create missing directories if needed."
+  []
+  (let [path (fs/path (get-project-root-path) "resources")]
+    (when-not (fs/exists? path)
+      (fs/create-dirs path))
+    path))
+
 (defn print-help [option-specs]
   (println "Available options:")
   (doseq [opt option-specs]

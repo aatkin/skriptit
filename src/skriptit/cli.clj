@@ -43,6 +43,14 @@
   (let [cmd (some #{"code" "vim"} *command-line-args*)]
     (shell* (or cmd "less") s)))
 
+(defn get-env
+  "Read environment variable, throw if undefined."
+  [k]
+  (let [v (System/getenv k)]
+    (assert (some? v) (str "Environment variable is not defined: $" k))
+    v
+    ))
+
 (defn awk-print-columns [columns]
   (let [columns (partition 2 (interleave (map name columns)
                                          (map inc (range))))]
