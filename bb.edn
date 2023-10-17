@@ -24,6 +24,6 @@
          ;; more complex scripts
          chromedriver (chromedriver/cli *command-line-args*)
          dirb (dirb/cli *command-line-args*)
-         gh (github/cli *command-line-args*)
+         gh (run github/commands *command-line-args*)
          git (git/cli *command-line-args*)
          rems (run rems/commands *command-line-args*)}}
