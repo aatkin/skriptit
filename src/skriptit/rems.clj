@@ -71,13 +71,13 @@
   (let [deps-nrepl ["update-in" :dependencies
                     "conj" (lein-dep "nrepl" "1.0.0")]
         plugins ["update-in" :plugins
-                 "conj" (lein-dep "cider/cider-nrepl" "0.28.5")]
+                 "conj" (lein-dep "cider/cider-nrepl" "0.40.0")]
         repl-cider ["update-in" (quote-vec :repl-options :nrepl-middleware)
                     "conj" (lein-dep "cider.nrepl/cider-middleware")]
         profiles (->> extra-profiles
                       (into ["+dev"]) #_"+portal" #_"+snitch"
                       (str/join ","))
-        cmd ["trampoline" "with-profile" profiles "repl" :headless]]
+        cmd [#_"trampoline" "with-profile" profiles "repl" :headless]]
     (apply shell* "lein" (->> (list deps-nrepl plugins repl-cider cmd)
                               (interpose ["--"])
                               (flatten)))))
@@ -86,7 +86,7 @@
   "Start shadow-cljs watcher for REMS front-end."
   {:skriptit/cmd "shadow"}
   [& _cli-args]
-  (let [repl-options ["-d" "cider/cider-nrepl:0.28.5"]
+  (let [repl-options ["-d" "cider/cider-nrepl:0.40.0"]
         cmd ["npx" "shadow-cljs" repl-options "watch" ":app"]]
     (apply shell* (flatten cmd))))
 
