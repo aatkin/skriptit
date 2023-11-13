@@ -3,66 +3,54 @@
             [clojure.pprint]
             [clojure.string :as str]))
 
-(def ^:private issue-template
-  {:markdown (str "{{if .labels}}"
-                  "[{{.title}} #{{.number}} ({{.labels | pluck \"name\" | join \", \"}})]({{.url}})"
-                  "{{else}}"
-                  "[{{.title}} #{{.number}}]({{.url}})"
-                  "{{end}}")
-   :url "{{.url}}"})
+(defn wrap-vec [s] (str "[" s "]"))
+(defn wrap-parens [s] (str "(" s ")"))
+
+(defn md-url [& s]
+  (str (wrap-vec (apply str s))
+       (wrap-parens "{{.url}}")))
+
+(defn template-if [condition then & [else]]
+  (str "{{if " condition "}}"
+       then
+       else
+       "{{end}}"))
+
+(defn template-pipe [p1 p2 & pipes]
+  (str "{{" (str/join " | " (concat [p1 p2] pipes)) "}}"))
 
 (defn view-issue
-  "View Github issue using template format. Defaults to markdown link:
-   `[.title .issue-number (.labels)](.url)`"
+  "View Github issue as markdown link `[.title .issue-number (.labels)](.url)`"
   {:skriptit/cmd "view-issue"
-   :skriptit/args "issue-number"
-   :skriptit/flags "--template"}
+   :skriptit/args "issue-number"}
   [issue-number & args]
   (assert (some? issue-number) "Missing required args: issue-number")
-  (let [args (partition 2 args)
-        template (some->> args
-                          (some #(when (= "--template" (first %))
-                                   (second %)))
-                          keyword)
-        s (-> (shell {:out :string}
+  (let [s (-> (shell {:out :string}
                      "gh issue view" issue-number
                      "--json" "labels,number,title,url"
-                     "--template" (get issue-template (or template :markdown)))
+                     "--template" (md-url "{{.title}} #{{.number}}"
+                                          (template-if ".labels"
+                                                       (str " " (wrap-parens (str "labels: "
+                                                                                  (template-pipe ".labels" "pluck \"name\"" "join \", \"")))))))
               :out
               str/split-lines
               first)]
     (println s)))
 
 (defn view-pr
-  "View Github pull request using template format. Defaults to markdown link:
-   `[.title .pr-number (.labels)](.url)`"
+  "View Github pull request as markdown link `[.title .pr-number (.author.login)](.url)`"
   {:skriptit/cmd "view-pr"
-   :skriptit/args "pr-number"
-   :skriptit/flags "--template"}
+   :skriptit/args "pr-number"}
   [pr-number & args]
   (assert (some? pr-number) "Missing required args: pr-number")
-  (let [args (partition 2 args)
-        template (some->> args
-                          (some #(when (= "--template" (first %))
-                                   (second %)))
-                          keyword)
-        s (-> (shell {:out :string}
+  (let [s (-> (shell {:out :string}
                      "gh pr view" pr-number
-                     "--json" "labels,number,title,url"
-                     "--template" (get issue-template (or template :markdown)))
+                     "--json" "author,labels,number,title,url"
+                     "--template" (md-url "{{.title}} #{{.number}} " (wrap-parens "by: {{.author.login}}")))
               :out
               str/split-lines
               first)]
     (println s)))
-
-#_(defn cli [cli-args]
-  (let [cmd (first cli-args)
-        opts (rest cli-args)]
-    (case cmd
-      "view-issue" (apply view-issue opts)
-      (clojure.pprint/print-table
-       [:cmd :flags]
-       [{:cmd "view-issue" :flags "[--template]"}]))))
 
 (def commands
   (list #'view-issue
