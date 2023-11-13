@@ -70,15 +70,23 @@
       [col (str "$" idx)])))
 
 (defn psgrep [cli-args]
-  (let [grep (first cli-args)
-        columns (->> ['user 'pid 'start 'time 'command]
+  (let [columns (->> ['user 'pid 'start 'time 'command]
                      (map name)
                      (str/join ","))
-        ps (shell {:out :string} "ps" "-o" columns)]
-    (shell {:in (:out ps)} "head" "-n" 1) ; print header
-    (-> (process {:in (:out ps)} "grep" grep)
-        (shell "grep" "-v" "grep") ; ignore grep itself
-        )))
+        ps (:out (shell {:out :string}
+                        "ps" "-o" columns))
+        grep (shell {:in ps
+                     :out :string}
+                    "grep" (first cli-args))
+        grepv (shell {:in (:out grep)
+                      :out :string
+                      :continue true}
+                     "grep" "-v" "grep")]
+    (when (zero? (:exit grepv))
+      ;; print header
+      (shell {:in ps} "head" "-n" 1)
+      ;; ignore grep itself
+      (println (:out grepv)))))
 
 (defn gpg [cli-args]
   (case (first cli-args)
