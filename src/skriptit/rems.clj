@@ -8,7 +8,7 @@
 (defn- rems-tag
   "Print commands for creating git tag with release number from current changelog."
   {:skriptit/cmd "tag"}
-  [_cli-args]
+  [& _cli-args]
   (let [changelog (slurp "CHANGELOG.md")
         release-version (second (re-find #"## (v[\d.]+)" changelog))
         release-name (second (re-find #"## v[\d.]+ \"([^\"]+)\"" changelog))
