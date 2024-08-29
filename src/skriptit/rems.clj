@@ -199,7 +199,7 @@
 (defn- rems-dev
   "Start REMS dev process with nREPL. Does not automatically load any REMS namespaces (e.g. no server startup)."
   {:skriptit/cmd "dev"
-   :skriptit/args "[& extra-profiles]"}
+   :skriptit/args "& :extra-profiles]"}
   [& extra-profiles]
   (let [plugins ["update-in" :plugins
                  "conj" (lein-dep :cider-nrepl)]
@@ -222,51 +222,37 @@
         cmd ["npx" "shadow-cljs" repl-options "watch" ":app"]]
     (apply shell* (flatten cmd))))
 
-(defn- args-plus-keywords [coll]
-  (->> coll
-       (mapcat (juxt identity (partial str ":")))))
-
 (defn- rems-test
-  "Run REMS tests with karma (frontend) or kaocha (backend) test runner."
+  "Run REMS tests with kaocha (backend) test runner."
   {:skriptit/cmd "test"
-   :skriptit/args "target [& args]"}
+   :skriptit/args ":target & :args"}
   [target & args]
-  (let [target= (fn [& xs]
-                  (some #{target} (args-plus-keywords xs)))
-        args= (fn [x]
-                (some #{x} args))]
+  (let [opts (set args)
+        watch (some opts #{"-w" "--watch"})
+        rest-opts (disj opts "-w" "--watch")]
     (cond
-      (and (target= "shadow")
-           (args= "compile"))
-      (do
-        (shell* "npx shadow-cljs compile cljs-test")
-        (shell* "npx karma start"))
+      (some #{target} #{"integration" ":integration"
+                        "unit" ":unit"
+                        "browser" ":browser"})
+      (apply shell*
+             "lein" "kaocha"
+             (cond-> [target]
+               :always (into ["--reporter" "kaocha.report/documentation"])
+               watch (into ["--watch" "--fail-fast"])
+               (seq rest-opts) (into rest-opts)))
 
-      (target= "shadow")
-      (shell* "npx karma start")
-
-      (target= "browser")
-      (println "TODO")
+      (str/starts-with? target ":")
+      (apply shell*
+             "lein" "kaocha"
+             (cond-> ["--focus-meta" target]
+               :always (into ["--reporter" "kaocha.report/documentation"])
+               watch (into ["--watch" "--fail-fast"])
+               (seq rest-opts) (into rest-opts)))
 
       :else
-      (let [cmd ["lein" #_"trampoline" "kaocha"] ; XXX: trampoline does not seem to help?
-            watch (when (some #{"watch"} args)
-                    ["--watch"
-                     "--fail-fast"])
-            opts (cond
-                   (target= "integration" "unit") [watch
-                                                   ["--reporter" "kaocha.report/documentation" target]]
-                   (str/starts-with? target ":feat/") [watch
-                                                       ["--focus-meta" target]]
-                   :else ["--watch"
-                          "--fail-fast"
-                          ["--focus" target]])]
-        (shell* (flatten (list cmd opts)))))))
-
-(def commands
-  (list #'rems-db
-        #'rems-dev
-        #'release-branch
-        #'rems-shadow
-        #'rems-test
-        #'rems-tag))
+      (apply shell*
+             "lein" "kaocha"
+             (cond-> ["--focus" target]
+               :always (into ["--reporter" "kaocha.report/documentation"])
+               watch (into ["--watch" "--fail-fast"])
+               (seq rest-opts) (into rest-opts))))))
