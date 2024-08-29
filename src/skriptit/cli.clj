@@ -2,16 +2,17 @@
   (:require [clojure.pprint]
             [clojure.set]
             [clojure.string :as str]
-            [babashka.process :refer [process shell]]
+            [babashka.process :refer [shell]]
             [skriptit.utils :as utils]))
 
 (defn- print-cmd [process-opts]
   (apply println "cmd:" (:cmd process-opts)))
 
 (defn- extract-vargs [args]
-  (if (sequential? (first args))
-    (first args)
-    args))
+  (let [vargs (if (sequential? (first args))
+                (first args)
+                args)]
+    (filterv some? vargs)))
 
 (defn cmd-meta [f]
   (-> (meta f)
@@ -51,18 +52,26 @@
       (apply f opts)
       (print-docs fns))))
 
+(defn- get-shell-opts [args]
+  (let [opts? (first args)]
+    (cond-> {:continue true}
+      (map? opts?) (merge opts?))))
+
 (defn shell*
-  "As shell, but prints :cmd as default option."
+  "As shell, but prints :cmd as default option, and does not throw by default."
   [& args]
-  (let [args (filterv some? (extract-vargs args))
-        opts? (first args)]
-    (if (map? opts?)
-      (apply shell
-             (merge {:pre-start-fn print-cmd} opts?)
-             (rest args))
-      (apply shell
-             {:pre-start-fn print-cmd}
-             args))))
+  (let [vargs (extract-vargs args)
+        opts (assoc (get-shell-opts vargs)
+                    :pre-start-fn print-cmd)]
+    (apply shell opts vargs)))
+
+(defn shell-str
+  "As shell, but outputs to string by default, and does not throw by default."
+  [& args]
+  (let [vargs (extract-vargs args)
+        opts (assoc (get-shell-opts vargs)
+                    :out :string)]
+    (apply shell opts vargs)))
 
 (defn edit-or-read [s]
   (let [cmd (some #{"code" "vim"} *command-line-args*)]
@@ -73,8 +82,7 @@
   [k]
   (let [v (System/getenv k)]
     (assert (some? v) (str "Environment variable is not defined: $" k))
-    v
-    ))
+    v))
 
 (defn awk-print-columns [columns]
   (let [columns (partition 2 (interleave (map name columns)
@@ -86,8 +94,7 @@
   (let [columns (->> ['user 'pid 'start 'time 'command]
                      (map name)
                      (str/join ","))
-        ps (:out (shell {:out :string}
-                        "ps" "-o" columns))
+        ps (:out (shell-str "ps" "-o" columns))
         grep (shell {:in ps
                      :out :string}
                     "grep" (first cli-args))

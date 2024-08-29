@@ -1,7 +1,7 @@
 (ns skriptit.github
-  (:require [babashka.process :refer [shell]]
-            [clojure.pprint]
-            [clojure.string :as str]))
+  (:require [clojure.pprint]
+            [clojure.string :as str]
+            [skriptit.cli :refer [shell-str]]))
 
 (defn md-url [& s]
   (str "[" (str/join "" s) "]" "({{.url}})"))
@@ -30,12 +30,11 @@
    :skriptit/args ":issue-number"}
   [issue-number & args]
   (assert (some? issue-number) "Missing required args: issue-number")
-  (let [s (-> (shell {:out :string}
-                     "gh issue view" issue-number
-                     "--json" "labels,number,title,url"
-                     "--template" (md-url "{{.title}} #{{.number}}"
-                                          (t-if ".labels"
-                                                (str " (labels: " (join-labels-by-name ", ") ")"))))
+  (let [s (-> (shell-str "gh issue view" issue-number
+                         "--json" "labels,number,title,url"
+                         "--template" (md-url "{{.title}} #{{.number}}"
+                                              (t-if ".labels"
+                                                    (str " (labels: " (join-labels-by-name ", ") ")"))))
               :out
               str/split-lines
               first)]
@@ -47,11 +46,10 @@
    :skriptit/args ":pr-number"}
   [pr-number & args]
   (assert (some? pr-number) "Missing required args: pr-number")
-  (let [s (-> (shell {:out :string}
-                     "gh pr view" pr-number
-                     "--json" "author,labels,number,title,url"
-                     "--template" (md-url "{{.title}} #{{.number}}"
-                                          "(by: {{.author.login}})"))
+  (let [s (-> (shell-str "gh pr view" pr-number
+                         "--json" "author,labels,number,title,url"
+                         "--template" (md-url "{{.title}} #{{.number}}"
+                                              "(by: {{.author.login}})"))
               :out
               str/split-lines
               first)]

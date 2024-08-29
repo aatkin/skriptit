@@ -2,7 +2,7 @@
   (:require [clojure.pprint]
             [clojure.string :as str]
             [babashka.process :refer [process shell]]
-            [skriptit.cli]))
+            [skriptit.cli :refer [shell-str]]))
 
 (defn has-git-repository? []
   (= 0 (:exit (shell {:continue true
@@ -39,10 +39,9 @@
   {:skriptit/cmd "find-tags"}
   []
   (when (has-git-repository?)
-    (-> (shell {:out :string}
-               "git describe"
-               "--tags"
-               "--abbrev=0")
+    (-> (shell-str "git describe"
+                   "--tags"
+                   "--abbrev=0")
         :out)))
 
 (defn short-hash
@@ -50,10 +49,9 @@
   {:skriptit/cmd "short-hash"}
   []
   (when (has-git-repository?)
-    (-> (shell {:out :string}
-               "git rev-parse"
-               "--short"
-               "HEAD")
+    (-> (shell-str "git rev-parse"
+                   "--short"
+                   "HEAD")
         :out)))
 
 (defn git-ignore
