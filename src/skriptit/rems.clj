@@ -175,9 +175,25 @@
 (defn quote-str [s]
   (str "\"" s "\""))
 
-(defn lein-dep [dependency & [version]]
+(defn format-lein-dependency [dependency & [version]]
   (quote-vec dependency
              (some-> version quote-str)))
+
+(def cli-deps
+  {:nrepl {:name "nrepl"
+           :url "https://github.com/nrepl/nrepl"
+           :version "1.3.0"}
+   :cider-nrepl {:name "cider/cider-nrepl"
+                 :url "https://github.com/clojure-emacs/cider-nrepl"
+                 :version "0.49.3"}})
+
+(defn lein-dep [k]
+  (let [dep (get cli-deps k)]
+    (format-lein-dependency (:name dep) (:version dep))))
+
+(defn shadow-dep [k]
+  (let [dep (get cli-deps k)]
+    (str (:name dep) ":" (:version dep))))
 
 ;; XXX: this could be generic (leiningen) script to add nREPL dependencies?
 (defn- rems-dev
@@ -186,11 +202,11 @@
    :skriptit/args "[& extra-profiles]"}
   [& extra-profiles]
   (let [deps-nrepl ["update-in" :dependencies
-                    "conj" (lein-dep "nrepl" "1.0.0")]
+                    "conj" (lein-dep :nrepl)]
         plugins ["update-in" :plugins
-                 "conj" (lein-dep "cider/cider-nrepl" "0.40.0")]
+                 "conj" (lein-dep :cider-nrepl)]
         repl-cider ["update-in" (quote-vec :repl-options :nrepl-middleware)
-                    "conj" (lein-dep "cider.nrepl/cider-middleware")]
+                    "conj" (quote-vec "cider.nrepl/cider-middleware")]
         profiles (->> extra-profiles
                       (into ["+dev"]) #_"+portal" #_"+snitch"
                       (str/join ","))
@@ -203,7 +219,7 @@
   "Start shadow-cljs watcher for REMS front-end."
   {:skriptit/cmd "shadow"}
   [& _cli-args]
-  (let [repl-options ["-d" "cider/cider-nrepl:0.40.0"]
+  (let [repl-options ["-d" (shadow-dep :cider-nrepl)]
         cmd ["npx" "shadow-cljs" repl-options "watch" ":app"]]
     (apply shell* (flatten cmd))))
 
