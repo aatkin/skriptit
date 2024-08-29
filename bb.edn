@@ -1,10 +1,10 @@
 {:paths ["src"]
  :tasks {:requires ([skriptit.chromedriver :as chromedriver]
                     [skriptit.cli :as cli :refer [get-env edit-or-read run]]
-                    [skriptit.dirb :as dirb]
-                    [skriptit.git :as git]
-                    [skriptit.github :as github]
-                    [skriptit.rems :as rems])
+                    [skriptit.dirb]
+                    [skriptit.git]
+                    [skriptit.github]
+                    [skriptit.rems])
          ;; dummy, test args
          test (println :command-line-args *command-line-args* :pwd (System/getenv "PWD"))
 
@@ -23,7 +23,7 @@
 
          ;; more complex scripts
          chromedriver (chromedriver/cli *command-line-args*)
-         dirb (dirb/cli *command-line-args*)
-         gh (run github/commands *command-line-args*)
-         git (git/cli *command-line-args*)
-         rems (run rems/commands *command-line-args*)}}
+         dirb (skriptit.dirb/cli *command-line-args*)
+         gh (run 'skriptit.github *command-line-args*)
+         git (run 'skriptit.git *command-line-args*)
+         rems (run 'skriptit.rems *command-line-args*)}}

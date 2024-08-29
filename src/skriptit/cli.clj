@@ -22,16 +22,29 @@
 
 (defn print-docs [fns]
   (let [meta-fns (mapv cmd-meta fns)]
-    (println 'print-docs (map :cmd meta-fns))
-    (doseq [meta-fn meta-fns]
-      (println (str "\n" (:cmd meta-fn)))
-      (println (str/join (repeat (count (:cmd meta-fn)) "=")))
-      (println (:doc meta-fn))
-      (clojure.pprint/print-table [:args :flags]
-                                  (list meta-fn)))))
+    (doseq [meta-fn meta-fns
+            :let [cmd (:cmd meta-fn)
+                  args (:args meta-fn)
+                  flags (:flags meta-fn)]]
+      (print "\n")
+      (cond
+        args (println cmd args)
+        flags (println cmd (->> flags
+                                (map (fn [s] (str "[" s "]")))
+                                (str/join " ")))
+        :else (println cmd))
+      (println (str/join (repeat (count cmd) "-")))
+      (println (:doc meta-fn)))))
 
-(defn run [fns cli-args]
-  (let [cmd (first cli-args)
+(defn- examine-ns [ns-sym]
+  (->> (the-ns ns-sym)
+       ns-interns
+       vals
+       (filter (comp :skriptit/cmd meta))))
+
+(defn run [f-namespace cli-args]
+  (let [fns (examine-ns f-namespace)
+        cmd (first cli-args)
         opts (rest cli-args)
         get-cmd (comp #{cmd} :cmd cmd-meta)]
     (if-some [f (utils/find-first get-cmd fns)]

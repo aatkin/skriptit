@@ -2,34 +2,22 @@
   (:require [clojure.pprint]
             [clojure.string :as str]
             [babashka.process :refer [process shell]]
-            [skriptit.utils :as utils]))
+            [skriptit.cli]))
 
-(defn inside-git-repo? []
+(defn has-git-repository? []
   (= 0 (:exit (shell {:continue true
                       :err :string
                       :out :string}
                      "git status"
                      "&>/dev/null"))))
 
-(defn find-tags []
-  (when (inside-git-repo?)
-    (-> (shell {:out :string}
-               "git describe"
-               "--tags"
-               "--abbrev=0")
-        :out
-        #_str/split-lines)))
-
-(defn short-hash []
-  (when (inside-git-repo?)
-    (-> (shell {:out :string}
-               "git rev-parse"
-               "--short"
-               "HEAD")
-        :out)))
-
-(defn changed-files [opts]
-  (when (inside-git-repo?)
+(defn changed-files
+  "TODO: description"
+  {:skriptit/cmd "changed-files"
+   :skriptit/flags ["-s | --staged" 
+                    "-c | --created"]}
+  [opts]
+  (when (has-git-repository?)
     (let [staged? (some #{"--staged" "-s"} opts)
           created? (some #{"--created" "-c"} opts)
           changed "^ M "
@@ -46,13 +34,38 @@
                                            (str "(" grep-line ")"))))
           (shell "awk" "{ print $2 }")))))
 
-(defn cli [cli-args]
-  (case (first cli-args)
-    "changed-files" (changed-files (rest cli-args))
-    "find-tags" (some-> (find-tags) print)
-    "short-hash" (some-> (short-hash) print)
-    (clojure.pprint/print-table
-     [:cmd :flags]
-     [{:cmd "changed-files" :flags "[-s | --staged] [-c | --created]"}
-      {:cmd "find-tags"}
-      {:cmd "short-hash"}])))
+(defn find-tags
+  "TODO: description"
+  {:skriptit/cmd "find-tags"}
+  []
+  (when (has-git-repository?)
+    (-> (shell {:out :string}
+               "git describe"
+               "--tags"
+               "--abbrev=0")
+        :out)))
+
+(defn short-hash
+  "TODO: description"
+  {:skriptit/cmd "short-hash"}
+  []
+  (when (has-git-repository?)
+    (-> (shell {:out :string}
+               "git rev-parse"
+               "--short"
+               "HEAD")
+        :out)))
+
+(defn git-ignore
+  "Open global .gitignore file. Defaults to `less`"
+  {:skriptit/cmd "ignore"
+   :skriptit/args "[:open-with]"}
+  []
+  (skriptit.cli/edit-or-read (skriptit.cli/get-env "GIT_IGNORE")))
+
+(defn git-config
+  "Open global .gitconfig file. Defaults to `less`"
+  {:skriptit/cmd "config"
+   :skriptit/args "[:open-with]"}
+  []
+  (skriptit.cli/edit-or-read (skriptit.cli/get-env "GIT_CONFIG")))
