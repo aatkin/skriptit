@@ -201,17 +201,16 @@
   {:skriptit/cmd "dev"
    :skriptit/args "[& extra-profiles]"}
   [& extra-profiles]
-  (let [deps-nrepl ["update-in" :dependencies
-                    "conj" (lein-dep :nrepl)]
-        plugins ["update-in" :plugins
+  (let [plugins ["update-in" :plugins
                  "conj" (lein-dep :cider-nrepl)]
         repl-cider ["update-in" (quote-vec :repl-options :nrepl-middleware)
                     "conj" (quote-vec "cider.nrepl/cider-middleware")]
         profiles (->> extra-profiles
-                      (into ["+dev"]) #_"+portal" #_"+snitch"
+                      (into ["+dev"])
                       (str/join ","))
-        cmd [#_"trampoline" "with-profile" profiles "repl" :headless]]
-    (apply shell* "lein" (->> (list deps-nrepl plugins repl-cider cmd)
+        cmd ["with-profile" profiles "repl" :headless]]
+    (apply shell* "lein" (->> cmd
+                              (list plugins repl-cider)
                               (interpose ["--"])
                               (flatten)))))
 
