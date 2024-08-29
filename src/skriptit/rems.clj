@@ -1,5 +1,6 @@
 (ns skriptit.rems
-  (:require [babashka.process :refer [shell]]
+  (:require [babashka.http-client :as http]
+            [babashka.process :refer [shell]]
             [clojure.string :as str]
             [skriptit.cli :refer [shell*]]
             [skriptit.utils :as utils]))
@@ -35,22 +36,138 @@
                       :next (str "v" major "." minor)}))
     (println "create branch:" branch)))
 
+;; #!/bin/bash
+;; docker run --rm --name rems_test -p 127.0.0.1:5432:5432 -d -e POSTGRES_HOST_AUTH_METHOD=trust postgres:13
+;; docker run --rm --link rems_test postgres:13 /bin/bash -c "while ! psql -h rems_test -U postgres -c 'select 1;' 2>/dev/null; do sleep 1; done"
+;; docker run -i --rm --link rems_test postgres:13 psql -h rems_test -U postgres < resources/sql/init.sql
+
+;; ARGS="run dev-setup"
+
+;; # optionally run perf test data
+;; if [ "$1" == "perf" ]; then
+;;     ARGS="run perf-setup"
+;; fi
+
+;; echo "lein $ARGS"
+;; lein $ARGS
+
+(defn- docker-volumes
+  "Columns: `[driver volume-name]`"
+  []
+  (->> (shell {:out :string} "docker volume ls")
+       :out
+       str/split-lines
+       (map #(str/split % #"[\s]{2,}"))))
+
+(defn- volume-exists? [volume-name]
+  (let [volumes (->> (docker-volumes)
+                     (into #{} (map second)))]
+    (contains? volumes volume-name)))
+
+(defn- docker-containers
+  "Columns: `[container-id image command created status ports names]`
+   
+   Opts:
+   - `:all?` (optional) Show all containers (default shows just running)"
+  [& [{:keys [all?]}]]
+  (->> (shell {:out :string}
+              (cond-> "docker container ls"
+                all? (str " --all")))
+       :out
+       str/split-lines
+       (map #(str/split % #"[\s]{2,}"))))
+
+(defn- container-exists? [container-id]
+  (let [containers (->> (docker-containers {:all? true})
+                        (into #{} (map last)))]
+    (contains? containers container-id)))
+
+(defn- container-running? [container-id]
+  (let [containers (->> (docker-containers)
+                        (into #{} (map last)))]
+    (contains? containers container-id)))
+
+(comment
+  (docker-containers {:all? true})
+  (container-exists? "rems_test")
+
+  (docker-containers)
+  (container-running? "rems_test"))
+
+(def volume-name "skriptit-rems-db-volume")
+(def container-id "rems_test")
+(def container-hostname "rems_test")
+(def postgres-image "postgres:13")
+(def db-init-script
+  (delay
+    (:body (http/get "https://raw.githubusercontent.com/CSCfi/rems/master/resources/sql/init.sql"))))
+
 (defn- rems-db
-  "Start postgres:13 container with existing volume for rems-dev local database."
-  {:skriptit/cmd "db"
-   :skriptit/args "[volume]"}
-  [& cli-args]
-  (let [volume (or (first cli-args)
-                   (System/getenv "REMS_DB_DOCKER_VOLUME"))]
-    (assert (not (str/blank? volume)) "volume cannot be empty")
-    (shell* "docker run"
-            "--rm"
-            "--name" "rems_test"
-            "-v" (str volume ":/var/lib/postgresql/data")
+  "Start postgres:13 container for rems-dev local database. Creates new volume if not exists."
+  {:skriptit/cmd "db"}
+  [& _cli-args]
+  (when-not (volume-exists? volume-name)
+    ;; https://docs.docker.com/reference/cli/docker/volume/create/
+    ;; usage: docker volume create [OPTIONS] [VOLUME]
+    (shell* "docker volume create" volume-name)
+    (assert (volume-exists? volume-name)))
+
+  ;; https://docs.docker.com/reference/cli/docker/container/create/
+  ;; usage: docker container create [OPTIONS] IMAGE [COMMAND] [ARG...]
+  (when-not (container-exists? container-id)
+    (shell* "docker container create"
+            ;; [OPTIONS]
+            ;; Assign a name to the container
+            "--name" container-id
+            ;; Container host name
+            "--hostname" container-hostname
+            ;; --volume Bind mount a volume
+            "-v" (str volume-name ":/var/lib/postgresql/data")
+            ;; --publish Publish a container's port(s) to the host
             "-p" "127.0.0.1:5432:5432"
-            "-d"
+            ;; --env Set environment variables
             "-e" "POSTGRES_HOST_AUTH_METHOD=trust"
-            "postgres:13")))
+            ;; IMAGE
+            postgres-image)
+    (assert (container-exists? container-id))
+
+    (shell* "docker container start" container-id)
+    (assert (container-running? container-id))
+
+    ;; docker run --rm --link rems_test postgres:13 /bin/bash -c "while ! psql -h rems_test -U postgres -c 'select 1;' 2>/dev/null; do sleep 1; done"
+    ;; wait for postgres to start
+    (shell* "docker container exec"
+            ;; [OPTIONS]
+            "--interactive"
+            ;; CONTAINER
+            container-id
+            ;; COMMAND
+            "/bin/bash"
+            ;; [ARG...]
+            "-c" (format "while ! psql -h %s -U postgres -c 'select 1;' 2>/dev/null; do sleep 1; done"
+                         container-hostname))
+
+    ;; docker run -i --rm --link rems_test postgres:13 psql -h rems_test -U postgres < resources/sql/init.sql
+    (assert (not-empty @db-init-script))
+    (shell* {:in @db-init-script} ; feed init script via standard input
+            "docker container exec"
+            ;; [OPTIONS]
+            "--interactive"
+            ;; CONTAINER
+            container-id
+            ;; COMMAND
+            "psql"
+            ;; [ARG...]
+            "-h" container-hostname
+            "-U" "postgres"
+            "--echo-queries"))
+
+  (when-not (container-running? container-id)
+    (shell* "docker container restart" container-id)
+    (assert (container-running? container-id)))
+
+  (println (format "container id: %s\nvolume name: %s"
+                   container-id volume-name)))
 
 (defn quote-vec [& args]
   (str "[" (str/join " " (remove nil? args)) "]"))
