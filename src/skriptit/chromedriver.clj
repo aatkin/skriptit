@@ -19,7 +19,7 @@
                                        "resources"
                                        "chromedriver_version.edn")))
 
-(def +target-path+ (str (fs/path "usr" "local" "bin" "chromedriver")))
+(def +target-path+ (str (fs/path "/usr" "local" "bin" "chromedriver")))
 
 (defn get-file-name [platform]
   (let [dir (case platform
