@@ -50,9 +50,11 @@
   [data filename]
   (let [temp-dir (fs/create-temp-dir)
         path (fs/path temp-dir filename)]
-    (println #'write-to-file "writing bytes to" (str path))
     (fs/write-bytes path data)
-    (fs/file path)))
+    (let [f (fs/file path)]
+      (println #'write-to-file {:path (str path)
+                                :size (fs/size f)})
+      f)))
 
 (defn- to-permission [x]
   (cond
@@ -98,7 +100,7 @@
         (write-to-file (str "unzip_" (System/currentTimeMillis)))
         (fs/unzip temp-dir))
     (let [file-list (get-file-list temp-dir)]
-      (println #'unzip-bytes "unzipped files" file-list)
+      (println #'unzip-bytes {:unzipped-files file-list})
       {:dir temp-dir
        :file-list file-list})))
 

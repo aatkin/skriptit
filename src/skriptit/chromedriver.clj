@@ -49,46 +49,57 @@
     {:current current-version
      :new version}))
 
-(defn- check-version [opts]
+(defn- check-version []
   (let [versions (get-current-and-new-versions)
-        current-version (:current versions)
-        new-version (:new versions)]
+        curr (:current versions)
+        next (:new versions)]
+    (if (= curr next)
+      [:skip curr next]
+      [:update curr next])))
+
+(defn update-chromedriver! [new-version]
+  (-> (download-and-unzip {:platform "mac-x64"}) ; XXX: support other OS downloads
+      (fs/copy +target-path+ {:replace-existing true})
+      (fs/file)
+      (utils/chmod-file {:owner #{:r :w :x}
+                         :group #{:r :x}
+                         :public #{:r :x}}))
+  (println "wrote to file" +target-path+)
+  (spit +version-file-path+ {:current new-version}))
+
+(defn check-version-and-update! [cmd opts]
+  (let [[action curr next] (check-version)
+        force-update? (true? (:force opts))
+        update? (= :update action)
+        auto-update? (and update?
+                          (true? (:yes opts)))]
+    (println "latest chromedriver version:" next (str "(current: " curr ")"))
     (cond
-      (:force opts)
-      new-version
+      (not= "update" cmd) nil
 
-      (= current-version new-version)
-      (println "already on latest version:" current-version)
-
-      (:yes opts)
+      force-update?
       (do
-        (println "latest chromedriver version:" new-version (str "(current: " current-version ")"))
+        (println "NB: this will overwrite current file in" +target-path+)
+        (println "--force flag set, proceeding automatically")
+        (update-chromedriver! next))
+
+      (= :skip action)
+      (println "already on latest version!")
+
+      auto-update?
+      (do
         (println "NB: this will overwrite current file in" +target-path+)
         (println "option :yes set, proceeding automatically")
-        new-version)
+        (update-chromedriver! next))
 
-      :else
+      update?
       (do
-        (println "latest chromedriver version:" new-version (str "(current: " current-version ")"))
         (println "NB: this will overwrite current file in" +target-path+)
         (println "do you want to proceed? (y/n)")
         (when (some #{"y" "yes"} (list (read-line)))
-          new-version)))))
-
-(defn update-chromedriver! [opts]
-  (when-some [new-version (check-version opts)]
-    (-> (download-and-unzip {:platform "mac-x64"}) ; XXX: support other OS downloads
-        (fs/copy +target-path+ {:replace-existing true})
-        (fs/file)
-        (utils/chmod-file {:owner #{:r :w :x}
-                           :group #{:r :x}
-                           :public #{:r :x}}))
-    (println "wrote to file" +target-path+)
-    (spit +version-file-path+ {:current new-version})))
+          (update-chromedriver! next))))))
 
 (defn cli [cli-args]
   (let [cmd (first cli-args)
         opts (rest cli-args)]
-    (case cmd
-      "update" (update-chromedriver! (utils/parse-cli opts cli-options))
-      (println (get-current-and-new-versions)))))
+    (check-version-and-update! cmd (utils/parse-cli opts cli-options))))
