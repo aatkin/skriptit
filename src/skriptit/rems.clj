@@ -1,6 +1,6 @@
 (ns skriptit.rems
-  (:require [babashka.http-client :as http]
-            [babashka.process :refer [shell]]
+  (:require [babashka.fs :as fs]
+            [babashka.http-client :as http]
             [clojure.string :as str]
             [skriptit.cli :refer [shell* shell-str]]
             [skriptit.utils :as utils]))
@@ -97,8 +97,16 @@
 (def container-hostname "rems_test")
 (def postgres-image "postgres:13")
 (def db-init-script
-  (delay
-    (:body (http/get "https://raw.githubusercontent.com/CSCfi/rems/master/resources/sql/init.sql"))))
+  (let [dir (fs/file (utils/resource "rems" "db"))
+        init-script (fs/file dir "init.sql")
+        github-url "https://raw.githubusercontent.com/CSCfi/rems/master/resources/sql/init.sql"]
+    (delay
+      (fs/create-dirs (fs/path dir))
+      (some->> (:body (http/get github-url))
+               (spit (str (fs/path init-script))))
+      (utils/chmod-file dir [7 5 5])
+      (utils/chmod-file init-script [6 4 4])
+      (str (fs/path init-script)))))
 
 (defn- rems-db
   "Start postgres:13 container for rems-dev local database. Creates new volume if not exists."
@@ -127,10 +135,20 @@
             "-e" "POSTGRES_HOST_AUTH_METHOD=trust"
             ;; IMAGE
             postgres-image)
-    (assert (container-exists? container-id))
+    (println "container exists?" (container-exists? container-id))
 
     (shell* "docker container start" container-id)
-    (assert (container-running? container-id))
+    (println "container running?" (container-running? container-id))
+
+    (assert (fs/exists? (fs/file @db-init-script)))
+    (println "init script path" @db-init-script)
+    ;; docker container cp ./resources/rems/db/init.sql rems_test:/docker-entrypoint-init.db.d
+    (shell* "docker container cp"
+            ;; [OPTIONS]
+            ;; SRC_PATH
+            @db-init-script
+            ;; DEST_PATH
+            (format "%s:/docker-entrypoint-initdb.d" container-id))
 
     ;; docker run --rm --link rems_test postgres:13 /bin/bash -c "while ! psql -h rems_test -U postgres -c 'select 1;' 2>/dev/null; do sleep 1; done"
     ;; wait for postgres to start
@@ -143,22 +161,7 @@
             "/bin/bash"
             ;; [ARG...]
             "-c" (format "while ! psql -h %s -U postgres -c 'select 1;' 2>/dev/null; do sleep 1; done"
-                         container-hostname))
-
-    ;; docker run -i --rm --link rems_test postgres:13 psql -h rems_test -U postgres < resources/sql/init.sql
-    (assert (not-empty @db-init-script))
-    (shell* {:in @db-init-script} ; feed init script via standard input
-            "docker container exec"
-            ;; [OPTIONS]
-            "--interactive"
-            ;; CONTAINER
-            container-id
-            ;; COMMAND
-            "psql"
-            ;; [ARG...]
-            "-h" container-hostname
-            "-U" "postgres"
-            "--echo-queries"))
+                         container-hostname)))
 
   (when-not (container-running? container-id)
     (shell* "docker container restart" container-id)
@@ -181,9 +184,10 @@
   {:nrepl {:name "nrepl"
            :url "https://github.com/nrepl/nrepl"
            :version "1.3.0"}
+
    :cider-nrepl {:name "cider/cider-nrepl"
                  :url "https://github.com/clojure-emacs/cider-nrepl"
-                 :version "0.49.3"}})
+                 :version "0.50.1"}})
 
 (defn lein-dep [k]
   (let [dep (get cli-deps k)]
@@ -226,31 +230,43 @@
    :skriptit/args ":target & :args"}
   [target & args]
   (let [opts (set args)
-        watch (some opts #{"-w" "--watch"})
-        rest-opts (disj opts "-w" "--watch")]
+        statistics (seq (filter #{"--stats" "--statistics"} opts))
+        watch (seq (filter #{"-w" "--watch"} opts))
+        profiles (filter #(str/starts-with? % "+skriptit-") opts)
+        rest-opts (->> (concat profiles statistics watch)
+                       (remove nil?)
+                       (apply disj opts))
+        kaocha-runner ["with-profile" (str/join "," (cons "+test" profiles))
+                       "run" "-m" "kaocha.runner"]]
     (cond
       (some #{target} #{"integration" ":integration"
                         "unit" ":unit"
                         "browser" ":browser"})
       (apply shell*
-             "lein" "kaocha"
+             "lein"
              (cond-> [target]
-               :always (into ["--reporter" "kaocha.report/documentation"])
+               true (->> (into kaocha-runner))
+               statistics (into ["--plugin" "rems.kaocha/cache-statistics-plugin"])
+               true (into ["--reporter" "kaocha.report/documentation"])
                watch (into ["--watch" "--fail-fast"])
                (seq rest-opts) (into rest-opts)))
 
-      (str/starts-with? target ":")
+      (str/starts-with? target ":") ; cmd: lein with-profile +test run -m kaocha.runner --focus rems.test-cache --plugin rems.kaocha/cache-statistics-plugin --reporter kaocha.report/documentation --watch --fail-fast
       (apply shell*
-             "lein" "kaocha"
+             "lein"
              (cond-> ["--focus-meta" target]
-               :always (into ["--reporter" "kaocha.report/documentation"])
+               true (->> (into kaocha-runner))
+               statistics (into ["--plugin" "rems.kaocha/cache-statistics-plugin"])
+               true (into ["--reporter" "kaocha.report/documentation"])
                watch (into ["--watch" "--fail-fast"])
                (seq rest-opts) (into rest-opts)))
 
-      :else
+      :else ; cmd: lein with-profile +test run -m kaocha.runner --focus rems.test-cache --reporter kaocha.report/documentation --watch --fail-fast
       (apply shell*
-             "lein" "kaocha"
+             "lein"
              (cond-> ["--focus" target]
-               :always (into ["--reporter" "kaocha.report/documentation"])
+               true (->> (into kaocha-runner))
+               statistics (into ["--plugin" "rems.kaocha/cache-statistics-plugin"])
+               true (into ["--reporter" "kaocha.report/documentation"])
                watch (into ["--watch" "--fail-fast"])
                (seq rest-opts) (into rest-opts))))))

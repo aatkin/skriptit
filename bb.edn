@@ -11,7 +11,9 @@
          ;; simple read/write files
          aliases (edit-or-read (get-env "ALIASES"))
          config (edit-or-read (get-env "CONFIG"))
-         gitignore (edit-or-read (get-env "GIT_IGNORE"))
+         gitignore (edit-or-read (get-env "MY_GIT_IGNORE"))
+         gitignore-local (edit-or-read ".local.gitignore")
+         gitconfig (edit-or-read (get-env "MY_GIT_CONFIG"))
          lein-profiles (edit-or-read (get-env "LEIN_PROFILES"))
          skriptit (edit-or-read (get-env "SKRIPTIT_CONFIG"))
          ssh (edit-or-read (get-env "SSH_CONFIG"))
@@ -23,7 +25,7 @@
 
          ;; more complex scripts
          chromedriver (chromedriver/cli *command-line-args*)
-         dirb (skriptit.dirb/cli *command-line-args*)
+         dirb (run 'skriptit.dirb *command-line-args*)
          gh (run 'skriptit.github *command-line-args*)
          git (run 'skriptit.git *command-line-args*)
          rems (run 'skriptit.rems *command-line-args*)}}

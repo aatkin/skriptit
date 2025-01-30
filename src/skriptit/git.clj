@@ -1,8 +1,8 @@
 (ns skriptit.git
-  (:require [clojure.pprint]
-            [clojure.string :as str]
+  (:require [babashka.fs :as fs]
             [babashka.process :refer [process shell]]
-            [skriptit.cli :refer [shell-str]]))
+            [skriptit.cli :refer [shell* shell-str]]
+            [skriptit.utils :refer [andstr resource]]))
 
 (defn has-git-repository? []
   (= 0 (:exit (shell {:continue true
@@ -14,24 +14,19 @@
 (defn changed-files
   "TODO: description"
   {:skriptit/cmd "changed-files"
-   :skriptit/flags ["-s | --staged" 
+   :skriptit/flags ["-s | --staged"
                     "-c | --created"]}
-  [opts]
+  [& opts]
   (when (has-git-repository?)
     (let [staged? (some #{"--staged" "-s"} opts)
           created? (some #{"--created" "-c"} opts)
-          changed "^ M "
-          changed-staged "^M  "
-          created (when created?
-                    "^\\?\\? ")
-          created-staged (when created?
-                           "^A  ")]
-      (-> (process "git status" "-s")
-          (process "egrep" (str/join "|" (for [grep-line (if staged?
-                                                           [changed-staged created-staged]
-                                                           [changed created])
-                                               :when grep-line]
-                                           (str "(" grep-line ")"))))
+          unstaged-changes (when-not staged?
+                             (-> (process "git status" "-s")
+                                 (process "egrep" (str "(^ M )" (andstr "|" (when created? "(^\\?\\? )"))))))
+          staged-changes (when staged?
+                           (-> (process "git status" "-s")
+                               (process "egrep" (str "(^M  )" (andstr "|" (when created? "(^A  )"))))))]
+      (-> (or unstaged-changes staged-changes)
           (shell "awk" "{ print $2 }")))))
 
 (defn find-tags
@@ -54,16 +49,14 @@
                    "HEAD")
         :out)))
 
-(defn git-ignore
-  "Open global .gitignore file. Defaults to `less`"
-  {:skriptit/cmd "ignore"
-   :skriptit/args "[:open-with]"}
+(defn init-gitignore
+  "TODO: description"
+  {:skriptit/cmd "init-gitignore"}
   []
-  (skriptit.cli/edit-or-read (skriptit.cli/get-env "GIT_IGNORE")))
-
-(defn git-config
-  "Open global .gitconfig file. Defaults to `less`"
-  {:skriptit/cmd "config"
-   :skriptit/args "[:open-with]"}
-  []
-  (skriptit.cli/edit-or-read (skriptit.cli/get-env "GIT_CONFIG")))
+  (when (has-git-repository?)
+    (when-not (fs/exists? ".local.gitignore")
+      (let [template (resource "template.local.gitignore")
+            target (fs/absolutize ".local.gitignore")]
+        (println (format "Copying %s to %s" template target))
+        (fs/copy template target)))
+    (shell* "git config core.excludesFile .local.gitignore")))

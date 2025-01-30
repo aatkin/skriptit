@@ -40,6 +40,20 @@
               first)]
     (println s)))
 
+(defn list-issues
+  "Get a list of all GitHub issues as JSON. Optionally specify limit."
+  {:skriptit/cmd "list-issues"
+   :skriptit/args "[:limit]"}
+  [& [limit]]
+  (let [result (apply shell-str
+                      "gh issue list"
+                      "--state" "all"
+                      "--json" "author,labels,number,title,state,createdAt,updatedAt,comments"
+                      "--jq" ".[] | {author: .author.login, number, title, state, createdAt, updatedAt, labels: .labels | map(.name), comments: .comments | map({author: .author.login, body, createdAt, updatedAt})}"
+                      (concat []
+                              (when (some? limit) ["--limit" limit])))]
+    (println (:out result))))
+
 (defn view-pr
   "View Github pull request as markdown link `[.title .pr-number (.author.login)](.url)`"
   {:skriptit/cmd "view-pr"

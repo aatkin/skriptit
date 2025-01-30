@@ -3,7 +3,22 @@
             [clojure.set]
             [clojure.string :as str]
             [babashka.process :refer [shell]]
+            [babashka.fs :as fs]
             [skriptit.utils :as utils]))
+
+;; example CLI function that has docstring and arguments metadata setup:
+;; (defn example-cmd
+;;   "Example command."
+;;   {:skriptit/cmd "test"
+;;    :skriptit/args ":arg1 :arg 2 & :args"
+;;    :skriptit/flags ["--debug"
+;;                     "-v | --verbose"]}
+;;   [arg1 arg2 & args]
+;;   (println "arg1" arg1 "arg2" arg2 "args" (remove #{"--debug" "-v" "--verbose"} args))
+;;   (println "debug" (some #{"--debug"} args))
+;;   (println "verbose" (some #{"-v" "--verbose"} args)))
+
+
 
 (defn- print-cmd [process-opts]
   (apply println "cmd:" (:cmd process-opts)))
@@ -74,8 +89,10 @@
     (apply shell opts vargs)))
 
 (defn edit-or-read [s]
-  (let [cmd (some #{"code" "vim"} *command-line-args*)]
-    (shell* (or cmd "less") s)))
+  (let [cmd (some #{"cursor" "code" "vim"} *command-line-args*)]
+    (if (fs/exists? s)
+      (shell* (or cmd "less") s)
+      (println "File does not exist:" s))))
 
 (defn get-env
   "Read environment variable, throw if undefined."

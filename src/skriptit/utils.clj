@@ -19,23 +19,38 @@
       (fs/create-dirs path))
     path))
 
+(defn resource
+  "Get path to project/root/resources/path/to/file. Creates missing directories if needed."
+  [& paths]
+  (let [dirs (apply fs/path (get-project-root-path) "resources" (butlast paths))]
+    (fs/create-dirs dirs)
+    (fs/path dirs (last paths))))
+
 (defn print-help [option-specs]
   (println "Available options:")
   (doseq [opt option-specs]
-    (apply println "\t" opt)))
+    (apply println "\t" (take 2 opt))))
 
 (defn parse-cli [args option-specs]
   (let [parsed-args (parse-opts args option-specs)
         errors (:errors parsed-args)
         unknown-args (:arguments parsed-args)]
+    ;; (apply println "options:" (:options parsed-args))
     (cond
       (seq errors) (do
                      (apply println "errors parsing options:" errors)
-                     (print-help option-specs))
+                     (print-help option-specs)
+                     (System/exit 1))
       (seq unknown-args) (do
                            (apply println "unrecognized arguments:" unknown-args)
-                           (print-help option-specs))
+                           (print-help option-specs)
+                           (System/exit 1))
       :else (:options parsed-args))))
+
+(defn exit-on-falsy [f & [msg]]
+  (when-not (f)
+    (println msg)
+    (System/exit 1)))
 
 (defn slurp-edn [x]
   (-> (slurp x)
@@ -58,11 +73,6 @@
 
 (defn- to-permission [x]
   (cond
-    (seq x)
-    (->> (map x #{:r :w :x})
-         (map (comp name (fnil identity "-")))
-         (str/join))
-
     (int? x)
     (case x
       1 "--x"
@@ -71,7 +81,12 @@
       4 "r--"
       5 "r-x"
       6 "rw-"
-      7 "rwx")))
+      7 "rwx")
+
+    (seq x)
+    (->> (map x #{:r :w :x})
+         (map (comp name (fnil identity "-")))
+         (str/join))))
 
 (defn chmod-file
   "Set posix file permissions on File f."
@@ -83,9 +98,9 @@
                                    (apply (juxt :owner :group :public))
                                    (mapv to-permission)
                                    (str/join))
-           (vector? permissions) (->> permissions
-                                      (mapv to-permission)
-                                      (str/join)))
+           (seq permissions) (->> permissions
+                                  (mapv to-permission)
+                                  (str/join)))
          (fs/set-posix-file-permissions f))))
 
 (defn get-file-list [dir]
@@ -109,3 +124,7 @@
 
 (defn find-first [pred coll]
   (some #(when (pred %) %) coll))
+
+(defn andstr [& strs]
+  (when (every? some? strs)
+    (apply str strs)))
