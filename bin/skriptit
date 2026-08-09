@@ -1,0 +1,6 @@
+#!/bin/sh
+
+set -eu
+
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+exec bb --config "$script_dir/../bb.edn" -m skriptit.cli "$@"

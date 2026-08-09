@@ -1,0 +1,7 @@
+.clj-kondo/
+.lsp/
+.nrepl-port
+
+# Runtime state belongs outside the checkout. Ignore this too so a legacy
+# resources directory cannot accidentally publish personal bookmarks.
+resources/

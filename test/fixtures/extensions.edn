@@ -1,0 +1,2 @@
+{:paths ["private-src"]
+ :commands [["hello" test-extension.hello]]}
