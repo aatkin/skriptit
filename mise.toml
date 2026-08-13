@@ -1,7 +1,0 @@
-[tasks.setup-completions]
-description = "Install zsh completions for skriptit and its shell helpers (oh-my-zsh optional)"
-run = "./scripts/setup-completions"
-
-[tasks.bootstrap]
-description = "Set up skriptit for interactive use"
-depends = ["setup-completions"]
