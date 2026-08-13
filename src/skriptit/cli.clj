@@ -96,6 +96,13 @@
             (apply command-var command-args)
             0))))))
 
+(defn- group-namespace
+  "Return the namespace symbol registered under prefix, or nil."
+  [groups prefix]
+  (some (fn [[group namespace-symbol]]
+          (when (= prefix group) namespace-symbol))
+        groups))
+
 (defn- print-help! [groups args]
   (let [[prefix command-name] args]
     (cond
@@ -110,7 +117,7 @@
         (println "Run `skriptit help <group>` for commands in a group."))
 
       :else
-      (if-let [[_ namespace-symbol] (some #(when (= prefix (first %)) %) groups)]
+      (if-let [namespace-symbol (group-namespace groups prefix)]
         (let [commands (command-vars namespace-symbol)
               selected (if command-name
                          (filter #(= command-name (:cmd (cmd-meta %))) commands)
@@ -123,7 +130,7 @@
 
 (defn- autocomplete! [groups args]
   (if-let [prefix (first args)]
-    (if-let [[_ namespace-symbol] (some #(when (= prefix (first %)) %) groups)]
+    (if-let [namespace-symbol (group-namespace groups prefix)]
       (do (run! println (find-autocomplete-cmds namespace-symbol)) 0)
       (do
         (binding [*out* *err*]
@@ -167,7 +174,7 @@
          (autocomplete! groups command-args)
 
          :else
-         (if-let [[_ namespace-symbol] (some #(when (= prefix (first %)) %) groups)]
+         (if-let [namespace-symbol (group-namespace groups prefix)]
            (run-namespace! namespace-symbol command-args)
            (do
              (binding [*out* *err*]
