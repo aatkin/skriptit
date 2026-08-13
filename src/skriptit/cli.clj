@@ -17,19 +17,24 @@
       (set/rename-keys {:skriptit/cmd :cmd
                         :skriptit/args :args})))
 
+(defn- cmd-name
+  "Return the command name a var is registered under, or nil for a plain var."
+  [command-var]
+  (:skriptit/cmd (meta command-var)))
+
 (defn- command-vars [namespace-symbol]
   (require namespace-symbol)
   (->> namespace-symbol
        find-ns
        ns-interns
        vals
-       (filter (comp :skriptit/cmd meta))
-       (sort-by (comp :skriptit/cmd meta))))
+       (filter cmd-name)
+       (sort-by cmd-name)))
 
 (defn find-autocomplete-cmds
   "Return the command names exposed by a namespace."
   [namespace-symbol]
-  (map (comp :cmd cmd-meta) (command-vars namespace-symbol)))
+  (map cmd-name (command-vars namespace-symbol)))
 
 (defn- print-command-docs! [command-vars]
   (doseq [command-var command-vars
@@ -64,7 +69,7 @@
   (when-let [[minimum maximum] (arity-bounds command-var)]
     (let [given (count args)]
       (when (or (< given minimum) (and maximum (> given maximum)))
-        (str "`" (:cmd (cmd-meta command-var)) "` takes "
+        (str "`" (cmd-name command-var) "` takes "
              (arity-phrase minimum maximum) ", but got " given ".")))))
 
 (defn run-namespace!
@@ -72,7 +77,7 @@
   [namespace-symbol args]
   (let [commands (command-vars namespace-symbol)
         command-name (first args)
-        command-var (some #(when (= command-name (:cmd (cmd-meta %))) %) commands)]
+        command-var (some #(when (= command-name (cmd-name %)) %) commands)]
     (cond
       (nil? command-name)
       (do (print-command-docs! commands) 0)
@@ -120,7 +125,7 @@
       (if-let [namespace-symbol (group-namespace groups prefix)]
         (let [commands (command-vars namespace-symbol)
               selected (if command-name
-                         (filter #(= command-name (:cmd (cmd-meta %))) commands)
+                         (filter #(= command-name (cmd-name %)) commands)
                          commands)]
           (if (seq selected)
             (print-command-docs! selected)
