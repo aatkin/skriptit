@@ -139,7 +139,8 @@ definition placed above the `source` line is overwritten and `s git status`
 answers `Unknown command group: git`.
 
 Duplicate group prefixes are rejected instead of silently shadowing a public
-command.
+command, and so are `help` and `autocomplete`: the dispatcher answers those
+itself, so a group behind one would be listed but never reachable.
 
 ## Development
 

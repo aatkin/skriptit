@@ -131,16 +131,25 @@
         2))
     (do (run! println (map first groups)) 0)))
 
-(defn- check-unique-prefixes! [groups]
-  (let [duplicates (->> (map first groups)
+(def ^:private reserved-prefixes
+  "Prefixes dispatch! answers itself, so no group can reach a command behind one."
+  #{"help" "autocomplete"})
+
+(defn- check-prefixes! [groups]
+  (let [prefixes (map first groups)
+        duplicates (->> prefixes
                         frequencies
                         (keep (fn [[prefix count]]
                                 (when (> count 1) prefix)))
                         sort
-                        seq)]
+                        seq)
+        reserved (->> prefixes (filter reserved-prefixes) sort seq)]
     (when duplicates
       (throw (ex-info "Command prefixes must be unique"
-                      {:duplicates duplicates})))))
+                      {:duplicates duplicates})))
+    (when reserved
+      (throw (ex-info "Command prefixes are reserved by the CLI"
+                      {:reserved reserved})))))
 
 (defn dispatch!
   "Run skriptit CLI args against command groups; return a process exit status."
@@ -148,7 +157,7 @@
    (dispatch! args default-groups))
   ([args groups]
    (try
-     (check-unique-prefixes! groups)
+     (check-prefixes! groups)
      (let [[prefix & command-args] args]
        (cond
          (or (nil? prefix) (= "help" prefix))

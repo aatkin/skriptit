@@ -50,6 +50,15 @@
                (is (zero? (cli/dispatch! ["hello" "greet" "Colleague"]
                                          groups)))))))
 
+    (testing "a prefix the dispatcher answers itself is rejected"
+      (let [error (java.io.StringWriter.)
+            status (binding [*err* error]
+                     (cli/dispatch! ["help"]
+                                    (conj cli/default-groups
+                                          ["help" 'skriptit.fixtures.hello-commands])))]
+        (is (= 1 status))
+        (is (str/includes? (str error) "reserved"))))
+
     (testing "a duplicate prefix is rejected instead of shadowing"
       (let [error (java.io.StringWriter.)
             status (binding [*err* error]
