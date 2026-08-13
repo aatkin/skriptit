@@ -1,6 +1,5 @@
 (ns skriptit.fileb
   (:require [babashka.fs :as fs]
-            [clojure.edn :as edn]
             [skriptit.cli :as cli]
             [skriptit.config :as config]
             [skriptit.db :as db]))
@@ -30,17 +29,6 @@
    :skriptit/args "<key> <path>"}
   [key path]
   (db/write! (get-db!) key (db/path->entry path)))
-
-(defn merge-defaults!
-  "Merge :fileb entries from an EDN file. $VAR tokens are expanded."
-  {:skriptit/cmd "merge-defaults"
-   :skriptit/args "<path>"}
-  [path]
-  (reduce (fn [state [key value]]
-            (db/write! state key
-                       (db/path->entry (config/interpolate-env value))))
-          (get-db!)
-          (:fileb (edn/read-string (slurp path)))))
 
 (defn remove-entry!
   "Remove the bookmark stored under key."

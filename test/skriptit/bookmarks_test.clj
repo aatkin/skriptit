@@ -42,27 +42,9 @@
           (fs/delete file)
           (is (str/includes? (printed #(fileb/list-entries!)) "[missing]")))))))
 
-(deftest merge-defaults-expands-variables
-  (with-temp-data-dir
-    (fn [temp-dir]
-      (let [defaults (fs/path temp-dir "defaults.edn")
-            home (System/getenv "HOME")]
-        (spit (str defaults)
-              (pr-str {:dirb {"dirb-home" "$HOME"}
-                       :fileb {"fileb-home" "$HOME"}}))
-        (with-out-str (dirb/merge-defaults! (str defaults)))
-        (with-out-str (fileb/merge-defaults! (str defaults)))
-
-        (is (= home (printed #(dirb/read-entry! "dirb-home"))))
-        (is (= home (printed #(fileb/read-entry! "fileb-home"))))
-
-        (testing "a group ignores the other group's defaults"
-          (is (thrown-with-msg? Exception #"does not exist"
-                                (dirb/read-entry! "fileb-home"))))))))
-
 (deftest autocomplete-switches-between-commands-and-entries
   (with-temp-data-dir
     (fn [_]
       (with-out-str (dirb/save-cwd! "here"))
-      (is (str/includes? (printed #(dirb/autocomplete!)) "merge-defaults"))
+      (is (str/includes? (printed #(dirb/autocomplete!)) "validate"))
       (is (= "here" (printed #(dirb/autocomplete! "entries")))))))

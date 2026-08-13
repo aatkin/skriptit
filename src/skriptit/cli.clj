@@ -1,11 +1,12 @@
 (ns skriptit.cli
-  (:require [babashka.classpath :as classpath]
-            [babashka.fs :as fs]
-            [clojure.edn :as edn]
-            [clojure.set :as set]
+  (:require [clojure.set :as set]
             [clojure.string :as str]))
 
-(def ^:private built-in-groups
+(def default-groups
+  "The default command groups, as [prefix namespace-symbol] pairs.
+
+  A private build extends the CLI by calling dispatch! with a larger vector
+  from a -main of its own; see the README."
   [["dirb" 'skriptit.dirb]
    ["fileb" 'skriptit.fileb]])
 
@@ -37,65 +38,6 @@
     (println (str/join " " (remove str/blank? [cmd args])))
     (println (apply str (repeat (count cmd) \-)))
     (println doc)))
-
-(defn- extension-path [manifest-path path]
-  (let [path (fs/path path)]
-    (if (fs/absolute? path)
-      path
-      (fs/path (fs/parent (fs/absolutize manifest-path)) path))))
-
-(defn- read-extension-groups
-  "Read optional private command groups and add their source paths.
-
-  SKRIPTIT_EXTENSIONS points to EDN shaped like:
-  {:paths [\"src\"]
-   :commands [[\"git\" my.private.git]]}
-
-  Relative source paths are resolved from the manifest, so the public and
-  private repositories can live anywhere."
-  [manifest]
-  (when manifest
-    (let [manifest-path (fs/absolutize manifest)]
-      (when-not (fs/regular-file? manifest-path)
-        (throw (ex-info "SKRIPTIT_EXTENSIONS does not name a readable file"
-                        {:path (str manifest-path)})))
-      (let [{:keys [paths commands] :as config}
-            (edn/read-string (slurp (str manifest-path)))]
-        (when-not (map? config)
-          (throw (ex-info "Extension manifest must contain an EDN map"
-                          {:path (str manifest-path)})))
-        (doseq [path paths]
-          (let [source-path (extension-path manifest-path path)]
-            (when-not (fs/directory? source-path)
-              (throw (ex-info "Extension source path is not a directory"
-                              {:path (str source-path)})))
-            (classpath/add-classpath (str source-path))))
-        (when-not (every? (fn [[prefix namespace-symbol]]
-                            (and (string? prefix)
-                                 (symbol? namespace-symbol)))
-                          commands)
-          (throw (ex-info "Extension :commands must contain [string symbol] pairs"
-                          {:path (str manifest-path)})))
-        commands))))
-
-(defn command-groups
-  "Return built-in groups followed by groups from SKRIPTIT_EXTENSIONS."
-  ([]
-   (command-groups (System/getenv "SKRIPTIT_EXTENSIONS")))
-  ([extension-manifest]
-   (let [groups (into built-in-groups
-                      (or (read-extension-groups extension-manifest) []))
-         duplicates (->> groups
-                         (map first)
-                         frequencies
-                         (keep (fn [[prefix count]]
-                                 (when (> count 1) prefix)))
-                         sort
-                         seq)]
-     (when duplicates
-       (throw (ex-info "Command prefixes must be unique"
-                       {:duplicates duplicates})))
-     groups)))
 
 (defn- arity-bounds
   "Return [minimum maximum] argument counts accepted by a command var.
@@ -189,14 +131,25 @@
         2))
     (do (run! println (map first groups)) 0)))
 
+(defn- check-unique-prefixes! [groups]
+  (let [duplicates (->> (map first groups)
+                        frequencies
+                        (keep (fn [[prefix count]]
+                                (when (> count 1) prefix)))
+                        sort
+                        seq)]
+    (when duplicates
+      (throw (ex-info "Command prefixes must be unique"
+                      {:duplicates duplicates})))))
+
 (defn dispatch!
-  "Run skriptit CLI args and return a process exit status."
+  "Run skriptit CLI args against command groups; return a process exit status."
   ([args]
-   (dispatch! args (System/getenv "SKRIPTIT_EXTENSIONS")))
-  ([args extension-manifest]
+   (dispatch! args default-groups))
+  ([args groups]
    (try
-     (let [groups (command-groups extension-manifest)
-           [prefix & command-args] args]
+     (check-unique-prefixes! groups)
+     (let [[prefix & command-args] args]
        (cond
          (or (nil? prefix) (= "help" prefix))
          (do (print-help! groups command-args) 0)

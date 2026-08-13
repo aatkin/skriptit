@@ -22,14 +22,3 @@
 
 (defn database-path [name]
   (fs/path (data-dir) (str name ".edn")))
-
-(defn interpolate-env
-  "Replace $VAR tokens in s. Throw when a referenced variable is unset."
-  [s]
-  (when-not (string? s)
-    (throw (ex-info "Expected a path string" {:value s})))
-  (str/replace s #"\$([A-Za-z_][A-Za-z0-9_]*)"
-               (fn [[token variable]]
-                 (or (System/getenv variable)
-                     (throw (ex-info (str "Environment variable is not set: " token)
-                                     {:variable variable}))))))
