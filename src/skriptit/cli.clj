@@ -1,6 +1,5 @@
 (ns skriptit.cli
-  (:require [clojure.set :as set]
-            [clojure.string :as str]))
+  (:require [clojure.string :as str]))
 
 (def default-groups
   "The default command groups, as [prefix namespace-symbol] pairs.
@@ -9,13 +8,6 @@
   from a -main of its own; see the README."
   [["dirb" 'skriptit.dirb]
    ["fileb" 'skriptit.fileb]])
-
-(defn cmd-meta
-  "Return the public CLI metadata attached to a command var."
-  [command-var]
-  (-> (meta command-var)
-      (set/rename-keys {:skriptit/cmd :cmd
-                        :skriptit/args :args})))
 
 (defn- cmd-name
   "Return the command name a var is registered under, or nil for a plain var."
@@ -38,7 +30,7 @@
 
 (defn- print-command-docs! [command-vars]
   (doseq [command-var command-vars
-          :let [{:keys [cmd args doc]} (cmd-meta command-var)]]
+          :let [{:skriptit/keys [cmd args] :keys [doc]} (meta command-var)]]
     (println)
     (println (str/join " " (remove str/blank? [cmd args])))
     (println (apply str (repeat (count cmd) \-)))
