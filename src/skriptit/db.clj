@@ -52,7 +52,7 @@
       current
       (let [updated (assoc db key value)]
         (persist! path updated)
-        (println "saved" key)
+        (println "saved" key "->" (entry->path value))
         (assoc current :db updated)))))
 
 (defn delete! [db-or-path key]

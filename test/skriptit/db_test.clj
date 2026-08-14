@@ -15,7 +15,8 @@
         (let [saved (with-out-str
                       (db/write! database "workspace"
                                  (db/path->entry (str temp-dir))))]
-          (is (= "saved workspace\n" saved)))
+          (is (= (str "saved workspace -> " (fs/absolutize temp-dir) "\n")
+                 saved)))
         (is (= (str (fs/absolutize temp-dir))
                (db/getx-entry database "workspace")))
         (with-out-str (db/rename! database "workspace" "work"))
