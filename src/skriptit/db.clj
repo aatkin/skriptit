@@ -24,6 +24,24 @@
     db-or-path
     (get-db! db-or-path)))
 
+(defn path->entry
+  "Turn a user-supplied path into the absolute string stored in a database."
+  [path]
+  (when-not (string? path)
+    (throw (ex-info "Bookmark path must be a string" {:path path})))
+  (str (fs/normalize (fs/absolutize (fs/expand-home path)))))
+
+(defn entry->path
+  "Resolve a stored entry to an absolute path string.
+
+  Databases written before bookmarks were stored as strings hold a vector of
+  path components instead, so both shapes are accepted on read."
+  [entry]
+  (let [path (if (string? entry)
+               (fs/expand-home entry)
+               (apply fs/path (flatten [entry])))]
+    (str (fs/normalize (fs/absolutize path)))))
+
 (defn write! [db-or-path key value]
   (when-not (and (string? key) (not-empty key))
     (throw (ex-info "Bookmark key must be a non-empty string" {:key key})))
@@ -63,24 +81,6 @@
 
 (defn entries [db-or-path]
   (:db (state db-or-path)))
-
-(defn path->entry
-  "Turn a user-supplied path into the absolute string stored in a database."
-  [path]
-  (when-not (string? path)
-    (throw (ex-info "Bookmark path must be a string" {:path path})))
-  (str (fs/normalize (fs/absolutize (fs/expand-home path)))))
-
-(defn entry->path
-  "Resolve a stored entry to an absolute path string.
-
-  Databases written before bookmarks were stored as strings hold a vector of
-  path components instead, so both shapes are accepted on read."
-  [entry]
-  (let [path (if (string? entry)
-               (fs/expand-home entry)
-               (apply fs/path (flatten [entry])))]
-    (str (fs/normalize (fs/absolutize path)))))
 
 (defn resolve-path [entry]
   (let [path (entry->path entry)]
