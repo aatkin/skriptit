@@ -1,6 +1,7 @@
 (ns skriptit.db
   (:require [babashka.fs :as fs]
-            [clojure.edn :as edn]))
+            [clojure.edn :as edn]
+            [skriptit.util :refer [blank?]]))
 
 (defn- persist! [path data]
   (fs/create-dirs (fs/parent path))
@@ -43,7 +44,7 @@
     (str (fs/normalize (fs/absolutize path)))))
 
 (defn write! [db-or-path key value]
-  (when-not (and (string? key) (not-empty key))
+  (when (blank? key)
     (throw (ex-info "Bookmark key must be a non-empty string" {:key key})))
   (when (nil? value)
     (throw (ex-info "Bookmark value is required" {:key key})))
@@ -65,7 +66,7 @@
         (assoc current :db updated)))))
 
 (defn rename! [db-or-path key new-key]
-  (when-not (and (string? new-key) (not-empty new-key))
+  (when (blank? new-key)
     (throw (ex-info "New bookmark key must be a non-empty string"
                     {:key new-key})))
   (let [{:keys [db path] :as current} (state db-or-path)]

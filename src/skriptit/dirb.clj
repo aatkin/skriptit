@@ -11,10 +11,10 @@
   "List directory bookmarks. Missing paths are marked instead of aborting the list."
   {:skriptit/cmd "list"}
   []
-  (doseq [[key entry] (db/entries (get-db!))]
-    (let [path (db/entry->path entry)]
-      (println (str key " -> " path
-                    (when-not (fs/directory? path) " [missing]"))))))
+  (doseq [[key entry] (db/entries (get-db!))
+          :let [path (db/entry->path entry)]]
+    (println (str key " -> " path
+                  (when-not (fs/directory? path) " [missing]")))))
 
 (defn read-entry!
   "Print the directory stored under key."
