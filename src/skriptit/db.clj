@@ -5,7 +5,16 @@
 
 (defn- persist! [path data]
   (fs/create-dirs (fs/parent path))
-  (spit (str path) (str (pr-str (into (sorted-map) data)) "\n")))
+  ;; The temp file must live in the same directory as the database so the
+  ;; rename stays within one filesystem and remains atomic.
+  (let [tmp (fs/create-temp-file {:dir (fs/parent path)
+                                  :prefix (str (fs/file-name path) ".")
+                                  :suffix ".tmp"})]
+    (try
+      (spit (str tmp) (str (pr-str (into (sorted-map) data)) "\n"))
+      (fs/move tmp path {:replace-existing true :atomic-move true})
+      (finally
+        (fs/delete-if-exists tmp)))))
 
 (defn get-db!
   "Open an EDN map at path, creating an empty database when absent."
