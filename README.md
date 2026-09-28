@@ -15,9 +15,17 @@ export PATH="$HOME/src/skriptit/bin:$PATH"
 source "$HOME/src/skriptit/shell/skriptit.zsh"   # after compinit
 ```
 
-`bin/skriptit` is the only executable, and `shell/skriptit.zsh` holds the
-interactive helpers and their tab completions. The completions register only
-when `compinit` has already run, which is why the file is sourced late.
+Or, for bash, to `.bashrc`:
+
+```bash
+export PATH="$HOME/src/skriptit/bin:$PATH"
+source "$HOME/src/skriptit/shell/skriptit.bash"
+```
+
+`bin/skriptit` is the only executable, and `shell/skriptit.zsh` and
+`shell/skriptit.bash` hold the interactive helpers and their tab completions.
+The zsh completions register only when `compinit` has already run, which is
+why that file is sourced late.
 
 ## Usage
 
@@ -36,7 +44,8 @@ Both bookmark types support `list`, `read`, `save`, `remove`, `rename`,
 `validate`, `fix`, and `autocomplete`.
 
 The low-level commands only print paths and update bookmark databases. The
-stateful, interactive operations are zsh functions layered on top:
+stateful, interactive operations are shell functions (zsh or bash) layered on
+top:
 
 - `s <group> <command> ...` — short form of `skriptit`.
 - `ss <name>` — save the current directory as a `dirb` bookmark.
@@ -128,15 +137,15 @@ the private commands because the completion functions query the command
 being completed:
 
 ```zsh
-# in .zshrc, below the shell/skriptit.zsh source line
+# in .zshrc (or .bashrc), below the shell/skriptit.zsh (.bash) source line
 s() {
   bb --config "$HOME/src/private/bb.edn" -m my.main "$@"
 }
 ```
 
-The order matters: `shell/skriptit.zsh` defines `s` itself, so a private
-definition placed above the `source` line is overwritten and `s git status`
-answers `Unknown command group: git`.
+The order matters: `shell/skriptit.zsh` (and `.bash`) defines `s` itself, so
+a private definition placed above the `source` line is overwritten and
+`s git status` answers `Unknown command group: git`.
 
 Duplicate group prefixes are rejected instead of silently shadowing a public
 command, and so are `help` and `autocomplete`: the dispatcher answers those
