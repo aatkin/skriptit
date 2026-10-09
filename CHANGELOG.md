@@ -2,6 +2,15 @@
 
 Notable changes to skriptit, newest first.
 
+## 2026-10-09
+
+### Added
+
+- An unknown command group or command now suggests the closest name:
+  `skriptit dirv` answers "Did you mean `dirb`?". A name within two edits
+  qualifies, as does one the typed word starts with (`dias-dev` suggests
+  `dias`), so private groups get suggestions too.
+
 ## 2026-09-28
 
 ### Added

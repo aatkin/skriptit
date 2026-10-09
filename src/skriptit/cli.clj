@@ -64,6 +64,42 @@
         (str "`" (cmd-name command-var) "` takes "
              (arity-phrase minimum maximum) ", but got " given ".")))))
 
+(defn- edit-distance
+  "Return the Levenshtein distance between strings a and b."
+  [a b]
+  (peek
+   (reduce (fn [previous [i a-char]]
+             (reduce (fn [row [j b-char]]
+                       (conj row (min (inc (peek row))
+                                      (inc (nth previous (inc j)))
+                                      (+ (nth previous j)
+                                         (if (= a-char b-char) 0 1)))))
+                     [(inc i)]
+                     (map-indexed vector b)))
+           (vec (range (inc (count b))))
+           (map-indexed vector a))))
+
+(defn- suggestion
+  "Return the candidate word most plausibly meant, or nil.
+
+  A candidate qualifies within two edits, or when word starts with it, as in
+  `dias-dev` for `dias`. Ties go to the earlier candidate."
+  [word candidates]
+  (->> candidates
+       (keep (fn [candidate]
+               (let [distance (if (str/starts-with? word candidate)
+                                0
+                                (edit-distance word candidate))]
+                 (when (and (<= distance 2) (< distance (count candidate)))
+                   [distance candidate]))))
+       (sort-by first)
+       first
+       second))
+
+(defn- print-suggestion! [word candidates]
+  (when-let [candidate (suggestion word candidates)]
+    (println (str "Did you mean `" candidate "`?"))))
+
 (defn run-namespace!
   "Dispatch args to a :skriptit/cmd var in namespace-symbol."
   [namespace-symbol args]
@@ -78,6 +114,7 @@
       (do
         (binding [*out* *err*]
           (println "Unknown command:" command-name)
+          (print-suggestion! command-name (map cmd-name commands))
           (print-command-docs! commands))
         2)
 
@@ -176,6 +213,7 @@
            (do
              (binding [*out* *err*]
                (println "Unknown command group:" prefix)
+               (print-suggestion! prefix (conj (mapv first groups) "help"))
                (println "Run `skriptit help` to list command groups."))
              2))))
      (catch Exception exception
